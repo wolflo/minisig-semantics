@@ -1,60 +1,56 @@
 requires "syntax.k"
+requires "types.k"
 
 module MINISIG
   imports DOMAINS
   imports MINISIG-SYNTAX
+  imports MINISIG-TYPES
 
   configuration
     <msig>
       <k>  $PGM:Exp </k>
-      <nonce> 1:Int </nonce>
-      <domSep> 2:Int </domSep>
-      <threshold> 3:Int </threshold>
-      <balance> 4:Int </balance>
-      <signers> ListItem(1) ListItem(2) ListItem(3) </signers>
+      <this>
+        <nonce> 1:Int </nonce>
+        <domSep> 2:Int </domSep>
+        <threshold> 3:Int </threshold>
+        <balance> 4:Int </balance>
+        <signers> SetItem(1) SetItem(2) SetItem(3) </signers>
+      </this>
+      // mapping from signature to the address that should be recovered
+      <ecrecover> .Map </ecrecover>
       <return> .K </return>
     </msig>
 
   // revert takes an error and consumes remaining operations
-  syntax Error ::= "ErrorCode1"
   syntax KItem ::= "#revert" Error
   rule <k> #revert _ERROR ~> (_:Exp => .K) ...</k>
-
-  syntax ViewId ::= "Nonce"
-                   | "Thresh"
-                   | "DomSep"
-                   | "Signers"
-  syntax OpView ::= "View" ViewId
-  syntax OpExec ::= "Exec" CallType Uint Address Data "[" LstSig "]"
-  syntax Exp ::= OpView
-               | OpExec
 
   // sequence expressions
   rule E1:Exp E2:Exp => E1 ~> E2      [simplification]
 
-  rule nonce()            => View Nonce   [macro]
-  rule threshold()        => View Thresh  [macro]
-  rule allSigners()       => View Signers [macro]
-  rule DOMAIN_SEPARATOR() => View DomSep  [macro]
-  rule execute(TYPE, VAL, TO, DATA, [SIGS]) => Exec TYPE VAL TO DATA [SIGS] [macro]
+  // --- View Functions ---
 
+  // nonce()
   rule
-    <k> View Nonce => . ...</k>
+    <k> View ( Nonce ) => . ...</k>
     <nonce> NONCE </nonce>
     <return> _ => NONCE </return>
 
+  // threshold()
   rule
-    <k> View Thresh => .K ...</k>
+    <k> View ( Thresh ) => .K ...</k>
     <threshold> THRESH </threshold>
     <return> _ => THRESH </return>
 
+  // DOMAIN_SEPARATOR()
   rule
-    <k> View DomSep => .K ...</k>
+    <k> View ( DomSep ) => .K ...</k>
     <domSep> DOMSEP </domSep>
     <return> _ => DOMSEP </return>
 
+  // allSigners()
   rule
-    <k> View Signers => .K ...</k>
+    <k> View ( Signers ) => .K ...</k>
     <signers> SIGNERS </signers>
     <return> _ => SIGNERS </return>
 
