@@ -9,6 +9,10 @@ module MINISIG
   configuration
     <msig>
       <k>  $PGM:Exp </k>
+      <call>
+        <callvalue> 12:Int </callvalue>
+        <return> .K </return>
+      </call>
       <this>
         <nonce> 1:Int </nonce>
         <domSep> 2:Int </domSep>
@@ -18,7 +22,6 @@ module MINISIG
       </this>
       // mapping from signature to the address that should be recovered
       <ecrecover> .Map </ecrecover>
-      <return> .K </return>
     </msig>
 
   // revert takes an error and consumes remaining operations
@@ -29,6 +32,13 @@ module MINISIG
   rule E1:Exp E2:Exp => E1 ~> E2      [simplification]
 
   // --- View Functions ---
+
+  // not payable
+  rule
+    <k> View ( _ ) => #revert INVALID_CALLVAL ...</k>
+    <callvalue> CALLVAL </callvalue>
+    <return> _ => . </return>
+  requires notBool CALLVAL ==Int 0
 
   // nonce()
   rule

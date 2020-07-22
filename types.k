@@ -3,7 +3,8 @@ requires "syntax.k"
 module MINISIG-TYPES
   imports MINISIG-SYNTAX
 
-  syntax Error ::= "INSUFFICIENT_BALANCE"
+  syntax Error ::= "INVALID_VAL"
+                 | "INVALID_CALLVAL"
 
   // --- Internal representations ---
 
