@@ -1,10 +1,22 @@
 requires "syntax.k"
 
 module MINISIG-TYPES
+  imports DOMAINS
   imports MINISIG-SYNTAX
+
+  // --- Errors and Logs ---
 
   syntax Error ::= "INVALID_VAL"
                  | "INVALID_CALLVAL"
+                 | "UNSPECIFIED"
+
+  syntax FnDetails ::= "execute"
+                     | "nonce"
+                     | "threshold"
+                     | "DOMAIN_SEPARATOR"
+                     | "allSigners"
+
+  syntax FnLog ::= "{" "fn:" FnDetails "," "callvalue:" Int "," "return:" KItem "}"
 
   // --- Internal representations ---
 
@@ -12,13 +24,14 @@ module MINISIG-TYPES
                    | "Thresh"
                    | "DomSep"
                    | "Signers"
+
   syntax OpView ::= "View" "(" ViewId ")"
 
-  syntax OpExec ::= "Exec" "(" "op:" CallType
-                            "," "val:" Uint
-                            "," "dst:" Address
-                            "," "data:" Data
-                            "," "sigs:" LstSig ")"
+  syntax OpExec ::= "Exec" "(" CallType
+                           "," Uint
+                           "," Address
+                           "," Data
+                           "," LstSig ")"
   syntax Exp ::= OpView
                | OpExec
 

@@ -21,6 +21,10 @@ module MINISIG-SYNTAX
                  FnView
                | FnExec
                | Exp Exp
+
+  syntax Tx ::= "sendTx" Exp
+              | Tx Tx
+
   /* execute(CallType _callType
             , uint256 _value
             , address _target
