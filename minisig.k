@@ -1,6 +1,7 @@
 requires "syntax.k"
 requires "types.k"
 
+// TODO add method for asserting invariants
 module MINISIG
   imports MINISIG-SYNTAX
   imports MINISIG-TYPES
@@ -9,7 +10,7 @@ module MINISIG
     <msig>
       <k>  $PGM:Tx </k>
       <call>
-        <callvalue> 12:Int </callvalue>
+        <callvalue> 0:Int </callvalue>
         <return> .K </return>
       </call>
       <msig-state>
@@ -23,25 +24,30 @@ module MINISIG
       <fn-log> .List </fn-log> // functions that are run on this contract
       <call-log> .List </call-log>  // calls made from this contract
       // mapping from signature to the address that should be recovered
-      <ecrecover> .Map </ecrecover>
+      <world>
+        <ecrecover> .Map </ecrecover> // signature => signer
+        <codesize> .Map </codesize>  // address => codesize
+      </world>
     </msig>
 
-  // sequence expressions
+  // --- sequence expressions ---
   rule E1:Exp E2:Exp => E1 ~> E2                      [simplification]
   rule T1:Tx T2:Tx => T1 ~> T2                        [simplification]
   rule sendTx E:Exp => #pushState ~> E ~> #dropState  [simplification]
 
+  // --- function resolution ---
 
   // halt takes an error and consumes remaining operations
   syntax KItem ::= "#halt" Error
   rule <k> #halt _ERROR ~> (_:Exp => .K) ...</k>
+  rule <k> #halt _ERROR ~> (_:OpInternal => .K) ...</k>
 
-  // Function completion -- revert or finalize
   syntax OpInternal ::= "#revert" Error
                       | "#finalize" FnDetails
 
   rule <k> #revert ERROR => #popState ~> #halt ERROR ...</k>
 
+  // finalize a successful execution by logging the function
   rule
     <k> #finalize FN => . ...</k>
     <callvalue> CALLVAL </callvalue>
@@ -50,6 +56,8 @@ module MINISIG
       ...
       (.List => ListItem( { fn: FN, callvalue: CALLVAL, return: RET } ))
     </fn-log>
+
+  // --- state rollbacks ---
 
   syntax OpInternal ::= "#pushState"
                       | "#popState"
@@ -67,6 +75,80 @@ module MINISIG
   rule
     <k> #dropState => . ...</k>
     <prestate> _ => .K </prestate>
+
+
+  // --- Execute ---
+
+  syntax OpInternal ::= "#checkPoststate"
+                      | "#mkCall" CallType Int Address Data
+                      | OpRequire
+
+  syntax OpRequire ::= "#checkSigs" CallType Int Address Data LstSig
+                     | "#checkSigsLen" LstSig
+                     | "#checkSigsOrder" LstSig
+
+  rule
+    <k> Exec ( OP, VAL, DST, DATA, SIGS )
+      => #checkPrestate OP VAL DST DATA SIGS
+      ~> #mkCall OP VAL DST DATA
+      ~> #checkPoststate
+    ...
+    </k>
+    <nonce> NONCE => NONCE +Int 1 </nonce>
+  requires (NONCE +Int 1) <Int pow256
+
+  syntax OpInternal ::= "#checkPrestate" CallType Int Address Data LstSig
+
+  // TODO:
+  // #checkSigs => #checkSigsLen ~> #checkSigsOrder ~> #getMsg ~> #ecrecover
+  /* rule #checkPrestate Call _ _ _ _ => #revert UNSPECIFIED */
+  /* rule <k> #checkPrestate DelegateCall _ _ _ _ => .K ...</k> */
+  rule
+    <k> #checkPrestate OP VAL DST DATA SIGS
+      => #checkVal VAL
+      ~> #checkDst OP DST
+      ~> #checkSigs OP VAL DST DATA SIGS
+    ...
+    </k>
+
+  // -- balance must be sufficient for call
+
+  syntax OpRequire ::= "#checkVal" Int
+
+  rule
+    <k> #checkVal VAL => #revert INVALID_VAL ...</k>
+    <balance> BAL </balance>
+    <return> _ => . </return>
+  requires VAL >Int BAL
+
+  rule
+    <k> #checkVal VAL => . ...</k>
+    <balance> BAL </balance>
+    <return> _ => . </return>
+  requires notBool VAL >Int BAL
+
+  // -- delegatecall requires that codesize(dstAddress) > 0
+
+  syntax OpRequire ::= "#checkDst" CallType Address
+
+  rule #checkDst Call _ => .K
+
+  rule
+    <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
+    <codesize>... DST |-> CSIZE ...</codesize>
+  requires notBool CSIZE >Int 0
+
+  // dst address is not in codesize mapping, defaults to 0
+  rule
+    <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
+    <codesize> CSIZES </codesize>
+  requires notBool (DST in_keys(CSIZES))
+
+  rule
+    <k> #checkDst DelegateCall DST => . ...</k>
+    <codesize>... DST |-> CSIZE ...</codesize>
+  requires CSIZE >Int 0
+
 
   // --- View Functions ---
 

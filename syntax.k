@@ -17,13 +17,12 @@ module MINISIG-SYNTAX
 
   syntax FnExec ::= "execute" "(" CallType "," Uint "," Address "," Data "," "[" LstSig "]" ")"
 
-  syntax Exp ::= left:
-                 FnView
+  syntax Exp ::= FnView
                | FnExec
-               | Exp Exp
+               | Exp Exp  [left]
 
   syntax Tx ::= "sendTx" Exp
-              | Tx Tx
+              | Tx Tx     [left]
 
   /* execute(CallType _callType
             , uint256 _value
