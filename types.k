@@ -17,7 +17,7 @@ module MINISIG-TYPES
                            "," Uint
                            "," Address
                            "," Data
-                           "," LstSig ")"
+                           "," List ")"
   syntax Exp ::= OpView
                | OpExec
 
@@ -26,11 +26,8 @@ module MINISIG-TYPES
   rule allSigners()       => View ( Signers ) [macro]
   rule DOMAIN_SEPARATOR() => View ( DomSep  ) [macro]
 
-  rule execute( OP, VAL, DST, DATA, [ SIGS ] ) => Exec ( OP
-                                                       , VAL
-                                                       , DST
-                                                       , DATA
-                                                       , SIGS ) [macro]
+  rule execute( OP, VAL, DST, DATA, [ SIGS ] )
+    => Exec ( OP , VAL , DST , DATA , #fromLstSig ( SIGS )) [macro]
 
   // --- Errors and Logs ---
 
@@ -50,4 +47,9 @@ module MINISIG-TYPES
 
   syntax Int ::= "pow256" // 2 ^ 256
   rule pow256 => 115792089237316195423570985008687907853269984665640564039457584007913129639936 [macro]
+
+  syntax List ::= #fromLstSig( LstSig )    [function]
+  rule #fromLstSig ( .LstSig )    => .List
+  rule #fromLstSig ( SIG , SIGS ) => ListItem( SIG ) #fromLstSig( SIGS )
+
 endmodule

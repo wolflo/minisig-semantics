@@ -5,10 +5,9 @@ module MINISIG-SYNTAX
   syntax Address ::= Int
   syntax CallType ::= "Call" | "DelegateCall"
   syntax Data ::= ".Data" | Int
-  syntax Sig ::= Int
+  syntax Sig ::= String
 
   syntax LstSig ::= List{Sig, ","}
-  syntax LstAddress ::= List{Address, ","}
 
   syntax FnView ::= "nonce" "(" ")"
                   | "threshold" "(" ")"

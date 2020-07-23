@@ -83,9 +83,9 @@ module MINISIG
                       | "#mkCall" CallType Int Address Data
                       | OpRequire
 
-  syntax OpRequire ::= "#checkSigs" CallType Int Address Data LstSig
-                     | "#checkSigsLen" LstSig
-                     | "#checkSigsOrder" LstSig
+  syntax OpRequire ::= "#checkSigs" CallType Int Address Data List
+                     | "#checkSigsLen" List
+                     | "#checkSigsOrder" List
 
   rule
     <k> Exec ( OP, VAL, DST, DATA, SIGS )
@@ -97,7 +97,7 @@ module MINISIG
     <nonce> NONCE => NONCE +Int 1 </nonce>
   requires (NONCE +Int 1) <Int pow256
 
-  syntax OpInternal ::= "#checkPrestate" CallType Int Address Data LstSig
+  syntax OpInternal ::= "#checkPrestate" CallType Int Address Data List
 
   // TODO:
   // #checkSigs => #checkSigsLen ~> #checkSigsOrder ~> #getMsg ~> #ecrecover
@@ -134,6 +134,11 @@ module MINISIG
   rule #checkDst Call _ => .K
 
   rule
+    <k> #checkDst DelegateCall DST => . ...</k>
+    <codesize>... DST |-> CSIZE ...</codesize>
+  requires CSIZE >Int 0
+
+  rule
     <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
     <codesize>... DST |-> CSIZE ...</codesize>
   requires notBool CSIZE >Int 0
@@ -145,9 +150,24 @@ module MINISIG
   requires notBool (DST in_keys(CSIZES))
 
   rule
-    <k> #checkDst DelegateCall DST => . ...</k>
-    <codesize>... DST |-> CSIZE ...</codesize>
-  requires CSIZE >Int 0
+    <k> #checkSigs OP VAL DST DATA SIGS
+      => #checkSigsLen SIGS
+      ~> #checkSigsOrder SIGS
+    ...
+    </k>
+
+  rule
+    <k> #checkSigsLen SIGS => . ...</k>
+    <threshold> THRESH </threshold>
+  requires
+    size(SIGS) ==Int THRESH
+    orBool size(SIGS) >Int THRESH
+
+  rule
+    <k> #checkSigsLen SIGS => #revert UNSPECIFIED ...</k>
+    <threshold> THRESH </threshold>
+  requires size(SIGS) <Int THRESH
+
 
 
   // --- View Functions ---
