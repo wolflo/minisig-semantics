@@ -1,11 +1,10 @@
 module MINISIG-SYNTAX
   imports DOMAINS-SYNTAX
 
-  syntax Uint ::= Int
-  syntax Address ::= Int
   syntax CallType ::= "Call" | "DelegateCall"
-  syntax Data ::= ".Data" | Int
   syntax Sig ::= String
+  syntax Data ::= String
+  syntax Address ::= Int
 
   syntax LstSig ::= List{Sig, ","}
 
@@ -14,7 +13,7 @@ module MINISIG-SYNTAX
                   | "DOMAIN_SEPARATOR" "(" ")"
                   | "allSigners" "(" ")"
 
-  syntax FnExec ::= "execute" "(" CallType "," Uint "," Address "," Data "," "[" LstSig "]" ")"
+  syntax FnExec ::= "execute" "(" CallType "," Int "," Address "," Data "," "[" LstSig "]" ")"
 
   syntax Exp ::= FnView
                | FnExec

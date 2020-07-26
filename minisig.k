@@ -16,7 +16,7 @@ module MINISIG
       <msig-state>
         <nonce> 1:Int </nonce>
         <domSep> 2:Int </domSep>
-        <threshold> 3:Int </threshold>
+        <threshold> 1:Int </threshold>
         <balance> 4:Int </balance>
         <signers> SetItem(1) SetItem(2) SetItem(3) </signers>
       </msig-state>
@@ -25,7 +25,7 @@ module MINISIG
       <call-log> .List </call-log>  // calls made from this contract
       // mapping from signature to the address that should be recovered
       <world>
-        <ecrecover> .Map </ecrecover> // signature => signer
+        <ecrecover> {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> "foo-addr" </ecrecover> // signature => signer
         <codesize> .Map </codesize>  // address => codesize
       </world>
     </msig>
@@ -83,31 +83,35 @@ module MINISIG
                       | "#mkCall" CallType Int Address Data
                       | OpRequire
 
-  syntax OpRequire ::= "#checkSigs" CallType Int Address Data List
+  syntax OpRequire ::= "#checkSigs" LstSignedMsg
                      | "#checkSigsLen" List
                      | "#checkSigsOrder" List
 
+  syntax OpInternal ::= "#exec" CallType Int Address Data LstSignedMsg
   rule
-    <k> Exec ( OP, VAL, DST, DATA, SIGS )
-      => #checkPrestate OP VAL DST DATA SIGS
-      ~> #mkCall OP VAL DST DATA
-      ~> #checkPoststate
+    <k> Exec ( OP , VAL , DST , DATA , SIGS )
+      => #exec OP VAL DST DATA ( #toLstSignedMsg OP VAL DST DATA NONCE SIGS )
     ...
     </k>
-    <nonce> NONCE => NONCE +Int 1 </nonce>
-  requires (NONCE +Int 1) <Int pow256
+    <nonce> NONCE </nonce>
 
-  syntax OpInternal ::= "#checkPrestate" CallType Int Address Data List
+    rule 
+      <k> #exec OP VAL DST DATA SMSGS
+        => #checkPrestate OP VAL DST SMSGS
+        ~> #mkCall OP VAL DST DATA
+        ~> #checkPoststate
+      ...
+      </k>
+      <nonce> NONCE => NONCE +Int 1 </nonce>
+    requires (NONCE +Int 1) <Int pow256
 
-  // TODO:
-  // #checkSigs => #checkSigsLen ~> #checkSigsOrder ~> #getMsg ~> #ecrecover
-  /* rule #checkPrestate Call _ _ _ _ => #revert UNSPECIFIED */
-  /* rule <k> #checkPrestate DelegateCall _ _ _ _ => .K ...</k> */
+  syntax OpInternal ::= "#checkPrestate" CallType Int Address LstSignedMsg
+
   rule
-    <k> #checkPrestate OP VAL DST DATA SIGS
+    <k> #checkPrestate OP VAL DST SMSGS
       => #checkVal VAL
       ~> #checkDst OP DST
-      ~> #checkSigs OP VAL DST DATA SIGS
+      ~> #checkSigs SMSGS
     ...
     </k>
 
@@ -131,6 +135,7 @@ module MINISIG
 
   syntax OpRequire ::= "#checkDst" CallType Address
 
+  // dst for call op can be any -- incl. 0x0, msg.sender, address(this)
   rule #checkDst Call _ => .K
 
   rule
@@ -141,7 +146,7 @@ module MINISIG
   rule
     <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
     <codesize>... DST |-> CSIZE ...</codesize>
-  requires notBool CSIZE >Int 0
+  requires CSIZE ==Int 0
 
   // dst address is not in codesize mapping, defaults to 0
   rule
@@ -150,24 +155,40 @@ module MINISIG
   requires notBool (DST in_keys(CSIZES))
 
   rule
-    <k> #checkSigs OP VAL DST DATA SIGS
-      => #checkSigsLen SIGS
-      ~> #checkSigsOrder SIGS
+    <k> #checkSigs SMSGS
+      => #ecrec RHO SMSGS
     ...
     </k>
+    <ecrecover> RHO </ecrecover>
+
+    syntax List ::= "#ecrec" Map LstSignedMsg [function]
+
+    rule #ecrec _ .LstSignedMsg => .List
+
+    rule #ecrec RHO ( SMSG , SMSGS )
+      => ListItem( RHO [ SMSG ] ) ( #ecrec RHO SMSGS )
+    requires SMSG in_keys(RHO)
+
+    rule #ecrec RHO ( SMSG , SMSGS )
+      => ListItem( 0 ) ( #ecrec RHO SMSGS )
+    requires notBool SMSG in_keys(RHO)
+
+    syntax SignedMsg ::= "#toSignedMsg" CallType Int Address Data Int Sig [function]
+
+    rule #toSignedMsg OP VAL DST DATA NONCE SIG
+      => { sig: SIG, nonce: NONCE, op: OP, val: VAL, dst: DST, data: DATA }
 
   rule
     <k> #checkSigsLen SIGS => . ...</k>
     <threshold> THRESH </threshold>
   requires
-    size(SIGS) ==Int THRESH
-    orBool size(SIGS) >Int THRESH
+    size( SIGS ) ==Int THRESH
+    orBool size( SIGS ) >Int THRESH
 
   rule
     <k> #checkSigsLen SIGS => #revert UNSPECIFIED ...</k>
     <threshold> THRESH </threshold>
-  requires size(SIGS) <Int THRESH
-
+  requires size( SIGS ) <Int THRESH
 
 
   // --- View Functions ---

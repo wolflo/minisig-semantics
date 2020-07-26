@@ -14,10 +14,10 @@ module MINISIG-TYPES
   syntax OpView ::= "View" "(" ViewId ")"
 
   syntax OpExec ::= "Exec" "(" CallType
-                           "," Uint
+                           "," Int
                            "," Address
                            "," Data
-                           "," List ")"
+                           "," LstSig ")"
   syntax Exp ::= OpView
                | OpExec
 
@@ -27,7 +27,26 @@ module MINISIG-TYPES
   rule DOMAIN_SEPARATOR() => View ( DomSep  ) [macro]
 
   rule execute( OP, VAL, DST, DATA, [ SIGS ] )
-    => Exec ( OP , VAL , DST , DATA , #fromLstSig ( SIGS )) [macro]
+    => Exec ( OP , VAL , DST , DATA , SIGS )  [macro]
+
+  // --- Signatures ---
+
+  syntax SignedMsg ::= "{" "sig:" Sig
+                       "," "nonce:" Int
+                       "," "op:" CallType
+                       "," "val:" Int
+                       "," "dst:" Address
+                       "," "data:" Data "}"
+
+  syntax LstSignedMsg ::= List{SignedMsg, ","}
+
+  syntax LstSignedMsg ::= "#toLstSignedMsg" CallType Int Address Data Int LstSig [function]
+
+  rule #toLstSignedMsg _ _ _ _ _ .LstSig => .LstSignedMsg
+
+  rule #toLstSignedMsg OP VAL DST DATA NONCE ( SIG , SIGS )
+    => { sig: SIG, nonce: NONCE, op: OP, val: VAL, dst: DST, data: DATA }
+       , #toLstSignedMsg OP VAL DST DATA NONCE SIGS
 
   // --- Errors and Logs ---
 
@@ -47,9 +66,5 @@ module MINISIG-TYPES
 
   syntax Int ::= "pow256" // 2 ^ 256
   rule pow256 => 115792089237316195423570985008687907853269984665640564039457584007913129639936 [macro]
-
-  syntax List ::= #fromLstSig( LstSig )    [function]
-  rule #fromLstSig ( .LstSig )    => .List
-  rule #fromLstSig ( SIG , SIGS ) => ListItem( SIG ) #fromLstSig( SIGS )
 
 endmodule
