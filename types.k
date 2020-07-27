@@ -38,15 +38,22 @@ module MINISIG-TYPES
                        "," "dst:" Address
                        "," "data:" Data "}"
 
-  syntax LstSignedMsg ::= List{SignedMsg, ","}
+  syntax LstAddress ::= List{Address, ":"}
+  syntax LstSignedMsg ::= List{SignedMsg, ":"}
+
+  syntax SignedMsg ::= "#toSignedMsg" CallType Int Address Data Int Sig [function]
+
+  rule #toSignedMsg OP VAL DST DATA NONCE SIG
+    => { sig: SIG, nonce: NONCE, op: OP, val: VAL, dst: DST, data: DATA }
 
   syntax LstSignedMsg ::= "#toLstSignedMsg" CallType Int Address Data Int LstSig [function]
 
   rule #toLstSignedMsg _ _ _ _ _ .LstSig => .LstSignedMsg
 
   rule #toLstSignedMsg OP VAL DST DATA NONCE ( SIG , SIGS )
-    => { sig: SIG, nonce: NONCE, op: OP, val: VAL, dst: DST, data: DATA }
-       , #toLstSignedMsg OP VAL DST DATA NONCE SIGS
+    => #toSignedMsg OP VAL DST DATA NONCE SIG
+       : #toLstSignedMsg OP VAL DST DATA NONCE SIGS
+
 
   // --- Errors and Logs ---
 
@@ -63,6 +70,12 @@ module MINISIG-TYPES
   syntax FnLog ::= "{" "fn:" FnDetails "," "callvalue:" Int "," "return:" KItem "}"
 
   // --- Utils ---
+
+  syntax LstSignedMsg ::= "#take" Int LstSignedMsg [function]
+  rule #take _ .LstSignedMsg => .LstSignedMsg
+  rule #take 0 _             => .LstSignedMsg
+  rule #take N ( X : XS ) => X : ( #take (N -Int 1) XS )
+    requires N >Int 0
 
   syntax Int ::= "pow256" // 2 ^ 256
   rule pow256 => 115792089237316195423570985008687907853269984665640564039457584007913129639936 [macro]

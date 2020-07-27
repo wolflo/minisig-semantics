@@ -16,7 +16,7 @@ module MINISIG
       <msig-state>
         <nonce> 1:Int </nonce>
         <domSep> 2:Int </domSep>
-        <threshold> 1:Int </threshold>
+        <threshold> 2:Int </threshold>
         <balance> 4:Int </balance>
         <signers> SetItem(1) SetItem(2) SetItem(3) </signers>
       </msig-state>
@@ -25,7 +25,10 @@ module MINISIG
       <call-log> .List </call-log>  // calls made from this contract
       // mapping from signature to the address that should be recovered
       <world>
-        <ecrecover> {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> "foo-addr" </ecrecover> // signature => signer
+        <ecrecover>
+          {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 55
+          {sig:"bar", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 56
+        </ecrecover> // signature => signer
         <codesize> .Map </codesize>  // address => codesize
       </world>
     </msig>
@@ -47,7 +50,7 @@ module MINISIG
 
   rule <k> #revert ERROR => #popState ~> #halt ERROR ...</k>
 
-  // finalize a successful execution by logging the function
+  // finalize a successful execution by logging the function that was run
   rule
     <k> #finalize FN => . ...</k>
     <callvalue> CALLVAL </callvalue>
@@ -79,15 +82,13 @@ module MINISIG
 
   // --- Execute ---
 
-  syntax OpInternal ::= "#checkPoststate"
-                      | "#mkCall" CallType Int Address Data
+  syntax OpInternal ::= "#mkCall" CallType Int Address Data
                       | OpRequire
 
-  syntax OpRequire ::= "#checkSigs" LstSignedMsg
-                     | "#checkSigsLen" List
-                     | "#checkSigsOrder" List
+  syntax OpRequire ::= "#checkPoststate"
 
   syntax OpInternal ::= "#exec" CallType Int Address Data LstSignedMsg
+
   rule
     <k> Exec ( OP , VAL , DST , DATA , SIGS )
       => #exec OP VAL DST DATA ( #toLstSignedMsg OP VAL DST DATA NONCE SIGS )
@@ -95,7 +96,7 @@ module MINISIG
     </k>
     <nonce> NONCE </nonce>
 
-    rule 
+    rule
       <k> #exec OP VAL DST DATA SMSGS
         => #checkPrestate OP VAL DST SMSGS
         ~> #mkCall OP VAL DST DATA
@@ -111,9 +112,10 @@ module MINISIG
     <k> #checkPrestate OP VAL DST SMSGS
       => #checkVal VAL
       ~> #checkDst OP DST
-      ~> #checkSigs SMSGS
+      ~> #checkSigs ( #take THRESH SMSGS )
     ...
     </k>
+    <threshold> THRESH </threshold>
 
   // -- balance must be sufficient for call
 
@@ -154,41 +156,52 @@ module MINISIG
     <codesize> CSIZES </codesize>
   requires notBool (DST in_keys(CSIZES))
 
+
+  syntax OpRequire ::= "#checkSigs" LstSignedMsg
+
   rule
     <k> #checkSigs SMSGS
-      => #ecrec RHO SMSGS
+      => #checkAscOrder ( #ecrec RHO SMSGS )
     ...
     </k>
     <ecrecover> RHO </ecrecover>
 
-    syntax List ::= "#ecrec" Map LstSignedMsg [function]
 
-    rule #ecrec _ .LstSignedMsg => .List
+  syntax OpRequire ::= "#checkAscOrder" LstAddress
 
-    rule #ecrec RHO ( SMSG , SMSGS )
-      => ListItem( RHO [ SMSG ] ) ( #ecrec RHO SMSGS )
-    requires SMSG in_keys(RHO)
-
-    rule #ecrec RHO ( SMSG , SMSGS )
-      => ListItem( 0 ) ( #ecrec RHO SMSGS )
-    requires notBool SMSG in_keys(RHO)
-
-    syntax SignedMsg ::= "#toSignedMsg" CallType Int Address Data Int Sig [function]
-
-    rule #toSignedMsg OP VAL DST DATA NONCE SIG
-      => { sig: SIG, nonce: NONCE, op: OP, val: VAL, dst: DST, data: DATA }
+  rule #checkAscOrder X : .LstAddress  => .
 
   rule
-    <k> #checkSigsLen SIGS => . ...</k>
-    <threshold> THRESH </threshold>
+    <k> #checkAscOrder X1 : X2 : XS => #checkAscOrder X2 : XS ...</k>
+  requires X1 <Int X2
+
+  rule
+    <k> #checkAscOrder X1 : X2 : _ => #revert UNSPECIFIED ...</k>
   requires
-    size( SIGS ) ==Int THRESH
-    orBool size( SIGS ) >Int THRESH
+    X1 >Int X2
+    orBool X1 ==Int X2
 
-  rule
-    <k> #checkSigsLen SIGS => #revert UNSPECIFIED ...</k>
-    <threshold> THRESH </threshold>
-  requires size( SIGS ) <Int THRESH
+
+  syntax LstAddress ::= "#ecrec" Map LstSignedMsg [function]
+
+  rule #ecrec _ .LstSignedMsg => .LstAddress
+
+  rule #ecrec RHO:Map ( SMSG : SMSGS )
+    => { RHO [ SMSG ] orDefault 0 }:>Address : ( #ecrec RHO SMSGS )
+
+  /* syntax OpRequire ::= "#checkSigsLen" List */
+
+  /* rule */
+  /*   <k> #checkSigsLen SIGS => . ...</k> */
+  /*   <threshold> THRESH </threshold> */
+  /* requires */
+  /*   size( SIGS ) ==Int THRESH */
+  /*   orBool size( SIGS ) >Int THRESH */
+
+  /* rule */
+  /*   <k> #checkSigsLen SIGS => #revert UNSPECIFIED ...</k> */
+  /*   <threshold> THRESH </threshold> */
+  /* requires size( SIGS ) <Int THRESH */
 
 
   // --- View Functions ---
