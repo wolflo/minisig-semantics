@@ -13,7 +13,17 @@ module MINISIG-SYNTAX
                   | "DOMAIN_SEPARATOR" "(" ")"
                   | "allSigners" "(" ")"
 
-  syntax FnExec ::= "execute" "(" CallType "," Int "," Address "," Data "," "[" LstSig "]" ")"
+  /* execute(CallType _callType
+            , uint256 _value
+            , address _target
+            , bytes calldata _data
+            , bytes calldata _sigs)
+            payable returns (bool) */
+  syntax FnExec ::= "execute" "(" CallType
+                              "," Int
+                              "," Address
+                              "," Data
+                              "," "[" LstSig "]" ")"
 
   syntax Exp ::= FnView
                | FnExec
@@ -21,12 +31,5 @@ module MINISIG-SYNTAX
 
   syntax Tx ::= "sendTx" Exp
               | Tx Tx     [left]
-
-  /* execute(CallType _callType
-            , uint256 _value
-            , address _target
-            , bytes calldata _data
-            , bytes calldata _sigs)
-            payable returns (bool) */
 
 endmodule

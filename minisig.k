@@ -18,7 +18,7 @@ module MINISIG
         <domSep> 2:Int </domSep>
         <threshold> 2:Int </threshold>
         <balance> 4:Int </balance>
-        <signers> SetItem(1) SetItem(2) SetItem(3) </signers>
+        <signers> SetItem(55) SetItem(56) SetItem(3) </signers>
       </msig-state>
       <prestate> .K </prestate>
       <fn-log> .List </fn-log> // functions that are run on this contract
@@ -81,11 +81,7 @@ module MINISIG
 
 
   // --- Execute ---
-
-  syntax OpInternal ::= "#mkCall" CallType Int Address Data
-                      | OpRequire
-
-  syntax OpRequire ::= "#checkPoststate"
+  // ---------------
 
   syntax OpInternal ::= "#exec" CallType Int Address Data LstSignedMsg
 
@@ -106,7 +102,9 @@ module MINISIG
       <nonce> NONCE => NONCE +Int 1 </nonce>
     requires (NONCE +Int 1) <Int pow256
 
-  syntax OpInternal ::= "#checkPrestate" CallType Int Address LstSignedMsg
+  // --- validate initial state ---
+  syntax OpInternal ::= OpRequire
+  syntax OpRequire ::= "#checkPrestate" CallType Int Address LstSignedMsg
 
   rule
     <k> #checkPrestate OP VAL DST SMSGS
@@ -156,32 +154,21 @@ module MINISIG
     <codesize> CSIZES </codesize>
   requires notBool (DST in_keys(CSIZES))
 
+  // --- validate signatures ---
 
   syntax OpRequire ::= "#checkSigs" LstSignedMsg
 
   rule
     <k> #checkSigs SMSGS
       => #checkAscOrder ( #ecrec RHO SMSGS )
+      ~> #checkSizeCap THRESH SIGNERS ( #toSet ( #ecrec RHO SMSGS ) )
     ...
     </k>
     <ecrecover> RHO </ecrecover>
+    <signers> SIGNERS </signers>
+    <threshold> THRESH </threshold>
 
-
-  syntax OpRequire ::= "#checkAscOrder" LstAddress
-
-  rule #checkAscOrder X : .LstAddress  => .
-
-  rule
-    <k> #checkAscOrder X1 : X2 : XS => #checkAscOrder X2 : XS ...</k>
-  requires X1 <Int X2
-
-  rule
-    <k> #checkAscOrder X1 : X2 : _ => #revert UNSPECIFIED ...</k>
-  requires
-    X1 >Int X2
-    orBool X1 ==Int X2
-
-
+  // -- recover signatures
   syntax LstAddress ::= "#ecrec" Map LstSignedMsg [function]
 
   rule #ecrec _ .LstSignedMsg => .LstAddress
@@ -189,22 +176,34 @@ module MINISIG
   rule #ecrec RHO:Map ( SMSG : SMSGS )
     => { RHO [ SMSG ] orDefault 0 }:>Address : ( #ecrec RHO SMSGS )
 
-  /* syntax OpRequire ::= "#checkSigsLen" List */
+  // -- require recovered signers to be in ascending order
+  syntax OpRequire ::= "#checkAscOrder" LstAddress
 
-  /* rule */
-  /*   <k> #checkSigsLen SIGS => . ...</k> */
-  /*   <threshold> THRESH </threshold> */
-  /* requires */
-  /*   size( SIGS ) ==Int THRESH */
-  /*   orBool size( SIGS ) >Int THRESH */
+  rule #checkAscOrder _ : .LstAddress  => .
 
-  /* rule */
-  /*   <k> #checkSigsLen SIGS => #revert UNSPECIFIED ...</k> */
-  /*   <threshold> THRESH </threshold> */
-  /* requires size( SIGS ) <Int THRESH */
+  rule #checkAscOrder X1 : X2 : XS => #checkAscOrder X2 : XS
+    requires X1 <Int X2
 
+  rule #checkAscOrder X1 : X2 : _ => #revert UNSPECIFIED
+    requires X1 >=Int X2
+
+  // -- assert | recovered_signers \intersect signers | >= threshold
+  syntax OpRequire ::= "#checkSizeCap" Int Set Set
+
+  rule #checkSizeCap N S1 S2 => .
+    requires size ( intersectSet( S1 , S2 ) ) >=Int N
+
+  rule #checkSizeCap N S1 S2 => #revert UNSPECIFIED
+    requires size ( intersectSet ( S1 , S2) ) <Int N
+
+  // --- make external call ---
+  syntax OpInternal ::= "#mkCall" CallType Int Address Data
+
+  // --- check result of call and nonce (if delegatecall) ---
+  syntax OpRequire ::= "#checkPoststate"
 
   // --- View Functions ---
+  // ----------------------
 
   // not payable
   rule

@@ -54,7 +54,6 @@ module MINISIG-TYPES
     => #toSignedMsg OP VAL DST DATA NONCE SIG
        : #toLstSignedMsg OP VAL DST DATA NONCE SIGS
 
-
   // --- Errors and Logs ---
 
   syntax Error ::= "INVALID_VAL"
@@ -76,6 +75,10 @@ module MINISIG-TYPES
   rule #take 0 _             => .LstSignedMsg
   rule #take N ( X : XS ) => X : ( #take (N -Int 1) XS )
     requires N >Int 0
+
+  syntax Set ::= "#toSet" LstAddress [function]
+  rule #toSet .LstAddress => .Set
+  rule #toSet X : XS => SetItem(X) ( #toSet XS )
 
   syntax Int ::= "pow256" // 2 ^ 256
   rule pow256 => 115792089237316195423570985008687907853269984665640564039457584007913129639936 [macro]
