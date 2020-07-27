@@ -160,7 +160,8 @@ module MINISIG
 
   rule
     <k> #checkSigs SMSGS
-      => #checkAscOrder ( #ecrec RHO SMSGS )
+      => #checkNonzeroHead ( #ecrec RHO SMSGS )
+      ~> #checkAscOrder ( #ecrec RHO SMSGS )
       ~> #checkSizeCap THRESH SIGNERS ( #toSet ( #ecrec RHO SMSGS ) )
     ...
     </k>
@@ -175,6 +176,12 @@ module MINISIG
 
   rule #ecrec RHO:Map ( SMSG : SMSGS )
     => { RHO [ SMSG ] orDefault 0 }:>Address : ( #ecrec RHO SMSGS )
+
+  // -- check that the first recovered signer > 0
+  syntax OpRequire ::= "#checkNonzeroHead" LstAddress
+  rule #checkNonzeroHead X : _       => .                   requires X >Int 0
+  rule #checkNonzeroHead X : _       => #revert UNSPECIFIED requires X ==Int 0
+  rule #checkNonzeroHead .LstAddress => #revert UNSPECIFIED
 
   // -- require recovered signers to be in ascending order
   syntax OpRequire ::= "#checkAscOrder" LstAddress
