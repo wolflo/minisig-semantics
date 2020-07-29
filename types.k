@@ -60,20 +60,36 @@ module MINISIG-TYPES
                  | "INVALID_CALLVAL"
                  | "UNSPECIFIED"
 
-  syntax FnDetails ::= "execute"
-                     | "nonce"
-                     | "threshold"
-                     | "DOMAIN_SEPARATOR"
-                     | "allSigners"
+  syntax FnDetails ::= "fn_nonce()"
+                     | "fn_threshold()"
+                     | "fn_DOMAIN_SEPARATOR()"
+                     | "fn_allSigners()"
+                     | "fn_execute" "(" CallType
+                                  "," Int
+                                  "," Address
+                                  "," Data
+                                  "," "[" LstSig "]" ")"
 
-  syntax FnLog ::= "{" "fn:" FnDetails "," "callvalue:" Int "," "return:" KItem "}"
+  syntax FnLog ::= "{" "fn:"        FnDetails
+                   "," "callvalue:" Int
+                   "," "return:"    RetVal "}"
+
+  syntax CallLog ::= "{" "op:"   CallType
+                     "," "val:"  Int
+                     "," "dst:"  Address
+                     "," "data:" Data "}"
+
+  syntax RetVal ::= ".RetVal"
+                  | Bool
+                  | Int
+                  | Set
 
   // --- Utils ---
 
   syntax LstSignedMsg ::= "#take" Int LstSignedMsg [function]
   rule #take _ .LstSignedMsg => .LstSignedMsg
   rule #take 0 _             => .LstSignedMsg
-  rule #take N ( X : XS ) => X : ( #take (N -Int 1) XS )
+  rule #take N ( X : XS )    => X : ( #take (N -Int 1) XS )
     requires N >Int 0
 
   syntax Set ::= "#toSet" LstAddress [function]
