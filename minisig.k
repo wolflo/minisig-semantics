@@ -3,8 +3,8 @@ requires "types.k"
 
 // TODO
 // - constructor
-// - better revert errors
 // - testing harness
+// - would be nice if reverted fn still added to fn-log
 module MINISIG
   imports MINISIG-SYNTAX
   imports MINISIG-TYPES
@@ -14,8 +14,9 @@ module MINISIG
       <k>  $PGM:Tx </k>
 
       <call>
-        <callvalue> 1:Int </callvalue>
+        <callvalue> 0:Int </callvalue>
         <returndata> .RetVal </returndata>
+        <status> .Status </status>
       </call>
 
       <msig-state>
@@ -28,16 +29,17 @@ module MINISIG
 
       <prestate> .K </prestate>
       <fn-log> .List </fn-log> // functions that are run on this contract
+      <return-log> .List </return-log> // data returned from this contract
       <call-log> .List </call-log>  // calls made from this contract
 
       <world>
         <ecrecover>
-          {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 55
-          {sig:"bar", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 56
-          {sig:"foo", nonce:2, op:Call, val:1, dst:77, data:"data"} |-> 55
-          {sig:"bar", nonce:2, op:Call, val:1, dst:77, data:"data"} |-> 56
+          {sig:"foo1", nonce:1, op:Call, val:1, dst:77, data:"data1"} |-> 55
+          {sig:"bar1", nonce:1, op:Call, val:1, dst:77, data:"data1"} |-> 56
+          {sig:"foo2", nonce:2, op:Call, val:1, dst:77, data:"data2"} |-> 55
+          {sig:"bar2", nonce:2, op:Call, val:1, dst:77, data:"data2"} |-> 56
         </ecrecover> // signature => signer
-        <call-returns> ListItem(true) ListItem(false) </call-returns>
+        <call-success> ListItem(true) ListItem(true) </call-success>
         <codesize> .Map </codesize>  // address => codesize
       </world>
 
@@ -48,6 +50,12 @@ module MINISIG
   rule T1:Tx T2:Tx   => T1 ~> T2                        [simplification]
   rule sendTx E:Exp  => #pushState ~> E ~> #dropState   [simplification]
 
+  // --- log function calls ---
+  rule
+    <k> #log FN => . ...</k>
+    <callvalue> CALLVAL </callvalue>
+    <fn-log> (.List => ListItem( { fn: FN, callvalue: CALLVAL } )) ...</fn-log>
+
   // --- function resolution ---
 
   // halt takes an error and consumes remaining operations
@@ -56,19 +64,24 @@ module MINISIG
   rule <k> #halt _ERROR ~> (_:OpInternal => .K) ...</k>
 
   syntax OpInternal ::= "#revert" Error
-                      | "#finalize" FnDetails
+                      | "#return" RetVal
+                      | "#finalize"
 
-  rule <k> #revert ERROR => #popState ~> #halt ERROR ...</k>
-
-  // finalize a successful execution by logging the function that was run
   rule
-    <k> #finalize FN => . ...</k>
-    <callvalue> CALLVAL </callvalue>
-    <returndata> RET </returndata>
-    <fn-log>
-      (.List => ListItem( { fn: FN, callvalue: CALLVAL, returndata: RET } ))
-      ...
-    </fn-log>
+    <k> #revert ERROR => #popState ~> #halt ERROR ...</k>
+    <status> _ => MSIG_REVERT </status>
+    <returndata> _ => .RetVal </returndata>
+
+  rule
+    <k> #return RETVAL => . ...</k>
+    <callvalue> _ => 0 </callvalue>
+    <returndata> _ => RETVAL </returndata>
+    <return-log> (.List => ListItem ( RETVAL )) ...</return-log>
+
+  // finalize successful execution by setting status
+  rule
+    <k> #finalize => . ...</k>
+    <status> _ => MSIG_SUCCESS </status>
 
   // --- state rollbacks ---
 
@@ -98,7 +111,7 @@ module MINISIG
   rule
     <k> Exec ( OP , VAL , DST , DATA , SIGS )
       => #exec OP VAL DST DATA ( #toLstSignedMsg OP VAL DST DATA NONCE SIGS )
-      ~> #finalize fn_execute ( OP , VAL , DST , DATA , [ SIGS ] )
+      ~> #finalize
     ...
     </k>
     <nonce> NONCE </nonce>
@@ -111,8 +124,8 @@ module MINISIG
       ~> #return true
     ...
     </k>
-    <nonce> NONCE => NONCE +Int 1 </nonce>
     <callvalue> CALLVAL </callvalue>
+    <nonce> NONCE => NONCE +Int 1 </nonce>
     <balance> BAL => BAL +Int CALLVAL </balance>
   requires
     (NONCE +Int 1) <Int pow256 // behavior unsepcified if nonce + 1 >= pow256
@@ -131,24 +144,21 @@ module MINISIG
     </k>
     <threshold> THRESH </threshold>
 
-  // -- balance must be sufficient for call
 
+  // -- balance must be sufficient for call
   syntax OpRequire ::= "#checkVal" Int
 
   rule
     <k> #checkVal VAL => #revert INVALID_VAL ...</k>
     <balance> BAL </balance>
-    <returndata> _ => .RetVal </returndata>
   requires VAL >Int BAL
 
   rule
     <k> #checkVal VAL => . ...</k>
     <balance> BAL </balance>
-    <returndata> _ => .RetVal </returndata>
   requires notBool VAL >Int BAL
 
   // -- delegatecall requires that codesize(dstAddress) > 0
-
   syntax OpRequire ::= "#checkDst" CallType Address
 
   // dst for call op can be any -- incl. 0x0, msg.sender, address(this)
@@ -162,18 +172,15 @@ module MINISIG
   rule
     <k> #checkDst DelegateCall DST => #revert DELEGATECALL_DST_EMPTY_CODE ...</k>
     <codesize>... DST |-> CSIZE ...</codesize>
-    <returndata> _ => .RetVal </returndata>
   requires CSIZE ==Int 0
 
   // dst address is not in codesize mapping, defaults to 0
   rule
     <k> #checkDst DelegateCall DST => #revert DELEGATECALL_DST_EMPTY_CODE ...</k>
     <codesize> CSIZES </codesize>
-    <returndata> _ => .RetVal </returndata>
   requires notBool (DST in_keys(CSIZES))
 
   // --- validate signatures ---
-
   syntax OpRequire ::= "#checkSigs" LstSignedMsg
 
   rule
@@ -200,15 +207,10 @@ module MINISIG
 
   rule #checkNonzeroHead X : _ => .K requires X >Int 0
 
-  rule
-    <k> #checkNonzeroHead X : _ => #revert ZERO_ADDRESS_SIGNER ...</k>
-    <returndata> _ => .RetVal </returndata>
-  requires X ==Int 0
-
   // TODO: specify this more completely
-  rule
-    <k> #checkNonzeroHead .LstAddress => #revert EMPTY_SIGNERS ...</k>
-    <returndata> _ => .RetVal </returndata>
+  rule #checkNonzeroHead .LstAddress => #revert EMPTY_SIGNERS
+  rule #checkNonzeroHead X : _       => #revert ZERO_ADDRESS_SIGNER
+    requires X ==Int 0
 
   // -- require recovered signers to be in ascending order
   syntax OpRequire ::= "#checkAscOrder" LstAddress
@@ -218,10 +220,8 @@ module MINISIG
   rule #checkAscOrder X1 : X2 : XS => #checkAscOrder X2 : XS
     requires X1 <Int X2
 
-  rule
-    <k> #checkAscOrder X1 : X2 : _  => #revert SIGS_UNORDERED ...</k>
-    <returndata> _ => .RetVal </returndata>
-  requires X1 >=Int X2
+  rule #checkAscOrder X1 : X2 : _  => #revert SIGS_UNORDERED
+    requires X1 >=Int X2
 
   // -- assert | recovered_signers \intersect signers | >= threshold
   syntax OpRequire ::= "#checkSizeCap" Int Set Set
@@ -229,10 +229,8 @@ module MINISIG
   rule #checkSizeCap N S1 S2 => .K
     requires size ( intersectSet ( S1 , S2 ) ) >=Int N
 
-  rule
-    <k> #checkSizeCap N S1 S2 => #revert INSUFFICIENT_VALID_SIGS ...</k>
-    <returndata> _ => .RetVal </returndata>
-  requires size ( intersectSet ( S1 , S2) ) <Int N
+  rule #checkSizeCap N S1 S2 => #revert INSUFFICIENT_VALID_SIGS
+    requires size ( intersectSet ( S1 , S2) ) <Int N
 
   // --- make external call ---
   syntax OpInternal ::= "#mkCall" CallType Int Address Data
@@ -250,33 +248,34 @@ module MINISIG
   // - assert call succeeded
   // - if delegatecall, assert that nonce is unchanged from before call
 
-  // a /\ b => c
-  // a /\ ~b \/ c
+  // call_success /\ op == delegate_call => nonce_unchanged
+  // call_success /\ not(op == delegate_call) \/ nonce_unchanged
   rule
     <k> #checkPoststate OP NONCE_PRECALL => . ...</k>
-    <call-returns> ( ListItem ( CALLRET ) => .List ) ...</call-returns>
+    <call-success> ( ListItem ( CALLRET ) => .List ) ...</call-success>
     <nonce> NONCE_POSTCALL </nonce>
   requires
     CALLRET ==Bool true
     andBool ( notBool OP ==K DelegateCall
               orBool NONCE_POSTCALL ==Int NONCE_PRECALL )
 
-  // ~( a /\ ~b \/ c )
-  // ~a \/ b /\ ~c
   rule
     <k> #checkPoststate OP NONCE_PRECALL => #revert INVALID_POSTSTATE ...</k>
-    <call-returns> ListItem ( CALLRET ) ...</call-returns>
     <nonce> NONCE_POSTCALL </nonce>
   requires
-    CALLRET ==Bool false
-    orBool ( OP ==K DelegateCall
-             andBool notBool NONCE_POSTCALL ==Int NONCE_PRECALL )
+    OP ==K DelegateCall
+    andBool notBool NONCE_POSTCALL ==Int NONCE_PRECALL
 
-  syntax OpInternal ::= "#return" RetVal
   rule
-    <k> #return RETVAL => . ...</k>
-    <callvalue> _ => 0 </callvalue>
-    <returndata> _ => RETVAL </returndata>
+    <k> #checkPoststate _ _ => #revert CALL_FAILED ...</k>
+    <call-success> ListItem(CALLRET) ...</call-success>
+  requires CALLRET ==Bool false
+
+  // an empty call-success list is assumed to be false
+  rule
+    <k> #checkPoststate _ _ => #revert CALL_FAILED ...</k>
+    <call-success> .List </call-success>
+
 
   // --- View Functions ---
   // ----------------------
@@ -285,14 +284,13 @@ module MINISIG
   rule
     <k> View ( _ ) => #revert INVALID_CALLVAL ...</k>
     <callvalue> CALLVAL </callvalue>
-    <returndata> _ => .RetVal </returndata>
   requires notBool CALLVAL ==Int 0
 
   // nonce()
   rule
     <k> View ( Nonce )
       => #return NONCE
-      ~> #finalize fn_nonce()
+      ~> #finalize
     ...
     </k>
     <callvalue> CALLVAL </callvalue>
@@ -303,7 +301,7 @@ module MINISIG
   rule
     <k> View ( Thresh )
       => #return THRESH
-      ~> #finalize fn_threshold()
+      ~> #finalize
     ...
     </k>
     <callvalue> CALLVAL </callvalue>
@@ -314,7 +312,7 @@ module MINISIG
   rule
     <k> View ( DomSep )
       => #return DOMSEP
-      ~> #finalize fn_DOMAIN_SEPARATOR()
+      ~> #finalize
     ...
     </k>
     <callvalue> CALLVAL </callvalue>
@@ -325,7 +323,7 @@ module MINISIG
   rule
     <k> View ( Signers )
       => #return SIGNERS
-      ~> #finalize fn_allSigners()
+      ~> #finalize
     ...
     </k>
     <callvalue> CALLVAL </callvalue>

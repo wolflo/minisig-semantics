@@ -18,16 +18,25 @@ module MINISIG-TYPES
                            "," Address
                            "," Data
                            "," LstSig ")"
+
+  syntax OpLog ::= "#log" FnDetails
+
   syntax Exp ::= OpView
                | OpExec
+               | OpLog
 
-  rule nonce()            => View ( Nonce   ) [macro]
-  rule threshold()        => View ( Thresh  ) [macro]
-  rule allSigners()       => View ( Signers ) [macro]
-  rule DOMAIN_SEPARATOR() => View ( DomSep  ) [macro]
+  rule nonce()            => #log fn_nonce()            ~> View ( Nonce )
+    [simplification]
+  rule threshold()        => #log fn_threshold()        ~> View ( Thresh )
+    [simplification]
+  rule allSigners()       => #log fn_allSigners()       ~> View ( Signers )
+    [simplification]
+  rule DOMAIN_SEPARATOR() => #log fn_DOMAIN_SEPARATOR() ~> View ( DomSep)
+    [simplification]
 
   rule execute( OP, VAL, DST, DATA, [ SIGS ] )
-    => Exec ( OP , VAL , DST , DATA , SIGS )  [macro]
+    => #log fn_execute ( OP , VAL , DST , DATA , [ SIGS ] )
+    ~> Exec ( OP , VAL , DST , DATA , SIGS )  [simplification]
 
   // --- Signatures ---
 
@@ -56,6 +65,10 @@ module MINISIG-TYPES
 
   // --- Errors and Logs ---
 
+  syntax MsigStatus ::= ".Status"
+                      | "MSIG_SUCCESS"
+                      | "MSIG_REVERT"
+
   syntax Error ::= "INVALID_VAL"
                  | "INVALID_CALLVAL"
                  | "DELEGATECALL_DST_EMPTY_CODE"
@@ -64,6 +77,7 @@ module MINISIG-TYPES
                  | "SIGS_UNORDERED"
                  | "INSUFFICIENT_VALID_SIGS"
                  | "INVALID_POSTSTATE"
+                 | "CALL_FAILED"
                  | "UNSPECIFIED"
 
   syntax FnDetails ::= "fn_nonce()"
@@ -76,9 +90,7 @@ module MINISIG-TYPES
                                     "," Data
                                     "," "[" LstSig "]" ")"
 
-  syntax FnLog ::= "{" "fn:"         FnDetails
-                   "," "callvalue:"  Int
-                   "," "returndata:" RetVal "}"
+  syntax FnLog ::= "{" "fn:" FnDetails "," "callvalue:"  Int "}"
 
   syntax CallLog ::= "{" "op:"   CallType
                      "," "val:"  Int
