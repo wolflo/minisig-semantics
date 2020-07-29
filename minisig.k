@@ -1,7 +1,10 @@
 requires "syntax.k"
 requires "types.k"
 
-// TODO add method for asserting invariants
+// TODO
+// - constructor
+// - better revert errors
+// - testing harness
 module MINISIG
   imports MINISIG-SYNTAX
   imports MINISIG-TYPES
@@ -157,14 +160,14 @@ module MINISIG
   requires CSIZE >Int 0
 
   rule
-    <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
+    <k> #checkDst DelegateCall DST => #revert DELEGATECALL_DST_EMPTY_CODE ...</k>
     <codesize>... DST |-> CSIZE ...</codesize>
     <returndata> _ => .RetVal </returndata>
   requires CSIZE ==Int 0
 
   // dst address is not in codesize mapping, defaults to 0
   rule
-    <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
+    <k> #checkDst DelegateCall DST => #revert DELEGATECALL_DST_EMPTY_CODE ...</k>
     <codesize> CSIZES </codesize>
     <returndata> _ => .RetVal </returndata>
   requires notBool (DST in_keys(CSIZES))
@@ -198,13 +201,13 @@ module MINISIG
   rule #checkNonzeroHead X : _ => .K requires X >Int 0
 
   rule
-    <k> #checkNonzeroHead X : _ => #revert UNSPECIFIED ...</k>
+    <k> #checkNonzeroHead X : _ => #revert ZERO_ADDRESS_SIGNER ...</k>
     <returndata> _ => .RetVal </returndata>
   requires X ==Int 0
 
   // TODO: specify this more completely
   rule
-    <k> #checkNonzeroHead .LstAddress => #revert UNSPECIFIED ...</k>
+    <k> #checkNonzeroHead .LstAddress => #revert EMPTY_SIGNERS ...</k>
     <returndata> _ => .RetVal </returndata>
 
   // -- require recovered signers to be in ascending order
@@ -216,7 +219,7 @@ module MINISIG
     requires X1 <Int X2
 
   rule
-    <k> #checkAscOrder X1 : X2 : _  => #revert UNSPECIFIED ...</k>
+    <k> #checkAscOrder X1 : X2 : _  => #revert SIGS_UNORDERED ...</k>
     <returndata> _ => .RetVal </returndata>
   requires X1 >=Int X2
 
@@ -227,7 +230,7 @@ module MINISIG
     requires size ( intersectSet ( S1 , S2 ) ) >=Int N
 
   rule
-    <k> #checkSizeCap N S1 S2 => #revert UNSPECIFIED ...</k>
+    <k> #checkSizeCap N S1 S2 => #revert INSUFFICIENT_VALID_SIGS ...</k>
     <returndata> _ => .RetVal </returndata>
   requires size ( intersectSet ( S1 , S2) ) <Int N
 
@@ -244,8 +247,8 @@ module MINISIG
 
   // --- check result of call and nonce (if delegatecall) ---
   syntax OpRequire ::= "#checkPoststate" CallType Int
-  // - if delegatecall, assert that nonce is unchanged from before call
   // - assert call succeeded
+  // - if delegatecall, assert that nonce is unchanged from before call
 
   // a /\ b => c
   // a /\ ~b \/ c
@@ -261,7 +264,7 @@ module MINISIG
   // ~( a /\ ~b \/ c )
   // ~a \/ b /\ ~c
   rule
-    <k> #checkPoststate OP NONCE_PRECALL => #revert UNSPECIFIED ...</k>
+    <k> #checkPoststate OP NONCE_PRECALL => #revert INVALID_POSTSTATE ...</k>
     <call-returns> ListItem ( CALLRET ) ...</call-returns>
     <nonce> NONCE_POSTCALL </nonce>
   requires

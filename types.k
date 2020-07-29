@@ -58,6 +58,12 @@ module MINISIG-TYPES
 
   syntax Error ::= "INVALID_VAL"
                  | "INVALID_CALLVAL"
+                 | "DELEGATECALL_DST_EMPTY_CODE"
+                 | "ZERO_ADDRESS_SIGNER"
+                 | "EMPTY_SIGNERS"
+                 | "SIGS_UNORDERED"
+                 | "INSUFFICIENT_VALID_SIGS"
+                 | "INVALID_POSTSTATE"
                  | "UNSPECIFIED"
 
   syntax FnDetails ::= "fn_nonce()"
