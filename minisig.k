@@ -11,8 +11,8 @@ module MINISIG
       <k>  $PGM:Tx </k>
 
       <call>
-        <callvalue> 0:Int </callvalue>
-        <return> .RetVal </return>
+        <callvalue> 1:Int </callvalue>
+        <returndata> .RetVal </returndata>
       </call>
 
       <msig-state>
@@ -29,8 +29,10 @@ module MINISIG
 
       <world>
         <ecrecover>
-          {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 0
+          {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 55
           {sig:"bar", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 56
+          {sig:"foo", nonce:2, op:Call, val:1, dst:77, data:"data"} |-> 55
+          {sig:"bar", nonce:2, op:Call, val:1, dst:77, data:"data"} |-> 56
         </ecrecover> // signature => signer
         <call-returns> ListItem(true) ListItem(false) </call-returns>
         <codesize> .Map </codesize>  // address => codesize
@@ -59,9 +61,9 @@ module MINISIG
   rule
     <k> #finalize FN => . ...</k>
     <callvalue> CALLVAL </callvalue>
-    <return> RET </return>
+    <returndata> RET </returndata>
     <fn-log>
-      (.List => ListItem( { fn: FN, callvalue: CALLVAL, return: RET } ))
+      (.List => ListItem( { fn: FN, callvalue: CALLVAL, returndata: RET } ))
       ...
     </fn-log>
 
@@ -133,13 +135,13 @@ module MINISIG
   rule
     <k> #checkVal VAL => #revert INVALID_VAL ...</k>
     <balance> BAL </balance>
-    <return> _ => .RetVal </return>
+    <returndata> _ => .RetVal </returndata>
   requires VAL >Int BAL
 
   rule
     <k> #checkVal VAL => . ...</k>
     <balance> BAL </balance>
-    <return> _ => .RetVal </return>
+    <returndata> _ => .RetVal </returndata>
   requires notBool VAL >Int BAL
 
   // -- delegatecall requires that codesize(dstAddress) > 0
@@ -157,14 +159,14 @@ module MINISIG
   rule
     <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
     <codesize>... DST |-> CSIZE ...</codesize>
-    <return> _ => .RetVal </return>
+    <returndata> _ => .RetVal </returndata>
   requires CSIZE ==Int 0
 
   // dst address is not in codesize mapping, defaults to 0
   rule
     <k> #checkDst DelegateCall DST => #revert UNSPECIFIED ...</k>
     <codesize> CSIZES </codesize>
-    <return> _ => .RetVal </return>
+    <returndata> _ => .RetVal </returndata>
   requires notBool (DST in_keys(CSIZES))
 
   // --- validate signatures ---
@@ -192,17 +194,18 @@ module MINISIG
 
   // -- check that the first recovered signer > 0
   syntax OpRequire ::= "#checkNonzeroHead" LstAddress
-  rule #checkNonzeroHead X : _       => .                   requires X >Int 0
+
+  rule #checkNonzeroHead X : _ => .K requires X >Int 0
 
   rule
-    <k> #checkNonzeroHead X : _ => #revert UNSPECIFIED </k>
-    <return> _ => .RetVal </return>
+    <k> #checkNonzeroHead X : _ => #revert UNSPECIFIED ...</k>
+    <returndata> _ => .RetVal </returndata>
   requires X ==Int 0
 
   // TODO: specify this more completely
   rule
-    <k> #checkNonzeroHead .LstAddress => #revert UNSPECIFIED </k>
-    <return> _ => .RetVal </return>
+    <k> #checkNonzeroHead .LstAddress => #revert UNSPECIFIED ...</k>
+    <returndata> _ => .RetVal </returndata>
 
   // -- require recovered signers to be in ascending order
   syntax OpRequire ::= "#checkAscOrder" LstAddress
@@ -213,8 +216,8 @@ module MINISIG
     requires X1 <Int X2
 
   rule
-    <k> #checkAscOrder X1 : X2 : _  => #revert UNSPECIFIED </k>
-    <return> _ => .RetVal </return>
+    <k> #checkAscOrder X1 : X2 : _  => #revert UNSPECIFIED ...</k>
+    <returndata> _ => .RetVal </returndata>
   requires X1 >=Int X2
 
   // -- assert | recovered_signers \intersect signers | >= threshold
@@ -224,8 +227,8 @@ module MINISIG
     requires size ( intersectSet ( S1 , S2 ) ) >=Int N
 
   rule
-    <k> #checkSizeCap N S1 S2 => #revert UNSPECIFIED </k>
-    <return> _ => .RetVal </return>
+    <k> #checkSizeCap N S1 S2 => #revert UNSPECIFIED ...</k>
+    <returndata> _ => .RetVal </returndata>
   requires size ( intersectSet ( S1 , S2) ) <Int N
 
   // --- make external call ---
@@ -241,14 +244,36 @@ module MINISIG
 
   // --- check result of call and nonce (if delegatecall) ---
   syntax OpRequire ::= "#checkPoststate" CallType Int
-  // - pop off the pre-seeded call-returns stack and revert if success = false
-  // - check that nonce is unchanged if delegatecall
+  // - if delegatecall, assert that nonce is unchanged from before call
+  // - assert call succeeded
+
+  // a /\ b => c
+  // a /\ ~b \/ c
+  rule
+    <k> #checkPoststate OP NONCE_PRECALL => . ...</k>
+    <call-returns> ( ListItem ( CALLRET ) => .List ) ...</call-returns>
+    <nonce> NONCE_POSTCALL </nonce>
+  requires
+    CALLRET ==Bool true
+    andBool ( notBool OP ==K DelegateCall
+              orBool NONCE_POSTCALL ==Int NONCE_PRECALL )
+
+  // ~( a /\ ~b \/ c )
+  // ~a \/ b /\ ~c
+  rule
+    <k> #checkPoststate OP NONCE_PRECALL => #revert UNSPECIFIED ...</k>
+    <call-returns> ListItem ( CALLRET ) ...</call-returns>
+    <nonce> NONCE_POSTCALL </nonce>
+  requires
+    CALLRET ==Bool false
+    orBool ( OP ==K DelegateCall
+             andBool notBool NONCE_POSTCALL ==Int NONCE_PRECALL )
 
   syntax OpInternal ::= "#return" RetVal
   rule
     <k> #return RETVAL => . ...</k>
     <callvalue> _ => 0 </callvalue>
-    <return> _ => RETVAL </return>
+    <returndata> _ => RETVAL </returndata>
 
   // --- View Functions ---
   // ----------------------
@@ -257,7 +282,7 @@ module MINISIG
   rule
     <k> View ( _ ) => #revert INVALID_CALLVAL ...</k>
     <callvalue> CALLVAL </callvalue>
-    <return> _ => .RetVal </return>
+    <returndata> _ => .RetVal </returndata>
   requires notBool CALLVAL ==Int 0
 
   // nonce()

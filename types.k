@@ -65,14 +65,14 @@ module MINISIG-TYPES
                      | "fn_DOMAIN_SEPARATOR()"
                      | "fn_allSigners()"
                      | "fn_execute" "(" CallType
-                                  "," Int
-                                  "," Address
-                                  "," Data
-                                  "," "[" LstSig "]" ")"
+                                    "," Int
+                                    "," Address
+                                    "," Data
+                                    "," "[" LstSig "]" ")"
 
-  syntax FnLog ::= "{" "fn:"        FnDetails
-                   "," "callvalue:" Int
-                   "," "return:"    RetVal "}"
+  syntax FnLog ::= "{" "fn:"         FnDetails
+                   "," "callvalue:"  Int
+                   "," "returndata:" RetVal "}"
 
   syntax CallLog ::= "{" "op:"   CallType
                      "," "val:"  Int
