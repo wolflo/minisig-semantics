@@ -29,9 +29,10 @@ module MINISIG
 
       <world>
         <ecrecover>
-          {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 55
+          {sig:"foo", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 0
           {sig:"bar", nonce:1, op:Call, val:1, dst:77, data:"data"} |-> 56
         </ecrecover> // signature => signer
+        <call-returns> ListItem(true) ListItem(false) </call-returns>
         <codesize> .Map </codesize>  // address => codesize
       </world>
 
@@ -106,7 +107,11 @@ module MINISIG
     ...
     </k>
     <nonce> NONCE => NONCE +Int 1 </nonce>
-  requires (NONCE +Int 1) <Int pow256 // behavior unsepcified if nonce + 1 >= pow256
+    <callvalue> CALLVAL </callvalue>
+    <balance> BAL => BAL +Int CALLVAL </balance>
+  requires
+    (NONCE +Int 1) <Int pow256 // behavior unsepcified if nonce + 1 >= pow256
+    andBool (BAL +Int CALLVAL) <Int pow256
 
   // --- validate initial state ---
   syntax OpInternal ::= OpRequire
@@ -225,6 +230,14 @@ module MINISIG
 
   // --- make external call ---
   syntax OpInternal ::= "#mkCall" CallType Int Address Data
+  rule
+    <k> #mkCall OP VAL DST DATA => . ...</k>
+    <call-log>
+      .List => ListItem( { op:OP, val:VAL, dst:DST, data:DATA } )
+    ...
+    </call-log>
+    <balance> BAL => BAL -Int VAL </balance>
+  requires BAL >=Int VAL // this should always hold at this point
 
   // --- check result of call and nonce (if delegatecall) ---
   syntax OpRequire ::= "#checkPoststate" CallType Int
@@ -232,9 +245,9 @@ module MINISIG
   // - check that nonce is unchanged if delegatecall
 
   syntax OpInternal ::= "#return" RetVal
-  // - return true from this contract if #checkPostate clears
   rule
     <k> #return RETVAL => . ...</k>
+    <callvalue> _ => 0 </callvalue>
     <return> _ => RETVAL </return>
 
   // --- View Functions ---
