@@ -2,11 +2,16 @@ module MINISIG-SYNTAX
   imports DOMAINS-SYNTAX
 
   syntax CallType ::= "Call" | "DelegateCall"
-  syntax Sig ::= String
-  syntax Data ::= String
-  syntax Address ::= Int
+  syntax Sig      ::= String
+  syntax Data     ::= String
+  syntax Address  ::= Int
 
-  syntax LstSig ::= List{Sig, ","}
+  syntax LstSig     ::= List{Sig, ":"}
+  syntax LstAddress ::= List{Address, ":"}
+
+  syntax Fn ::= FnView
+              | FnExec
+              | FnConstructor
 
   syntax FnView ::= "nonce" "(" ")"
                   | "threshold" "(" ")"
@@ -25,8 +30,9 @@ module MINISIG-SYNTAX
                               "," Data
                               "," "[" LstSig "]" ")"
 
-  syntax Exp ::= FnView
-               | FnExec
+  syntax FnConstructor ::= "constructor" "(" Int "," "[" LstAddress "]" ")"
+
+  syntax Exp ::= Fn
                | Exp Exp  [left]
 
   syntax Tx ::= "sendTx" Exp

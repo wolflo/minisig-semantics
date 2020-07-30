@@ -19,11 +19,14 @@ module MINISIG-TYPES
                            "," Data
                            "," LstSig ")"
 
+  syntax OpCstr ::= "Cstr" "(" Int "," LstAddress ")"
+
   syntax OpLog ::= "#log" FnDetails
 
   syntax Exp ::= OpView
                | OpExec
                | OpLog
+               | OpCstr
 
   rule nonce()            => #log fn_nonce()            ~> View ( Nonce )
     [simplification]
@@ -34,9 +37,13 @@ module MINISIG-TYPES
   rule DOMAIN_SEPARATOR() => #log fn_DOMAIN_SEPARATOR() ~> View ( DomSep)
     [simplification]
 
-  rule execute( OP, VAL, DST, DATA, [ SIGS ] )
+  rule execute ( OP, VAL, DST, DATA, [ SIGS ] )
     => #log fn_execute ( OP , VAL , DST , DATA , [ SIGS ] )
     ~> Exec ( OP , VAL , DST , DATA , SIGS )  [simplification]
+
+  rule constructor ( THRESHOLD , [ SIGNERS ] )
+    => #log fn_constructor ( THRESHOLD , SIGNERS)
+    ~> Cstr ( THRESHOLD , SIGNERS )
 
   // --- Signatures ---
 
@@ -47,7 +54,6 @@ module MINISIG-TYPES
                        "," "dst:" Address
                        "," "data:" Data "}"
 
-  syntax LstAddress ::= List{Address, ":"}
   syntax LstSignedMsg ::= List{SignedMsg, ":"}
 
   syntax SignedMsg ::= "#toSignedMsg" CallType Int Address Data Int Sig [function]
@@ -59,7 +65,7 @@ module MINISIG-TYPES
 
   rule #toLstSignedMsg _ _ _ _ _ .LstSig => .LstSignedMsg
 
-  rule #toLstSignedMsg OP VAL DST DATA NONCE ( SIG , SIGS )
+  rule #toLstSignedMsg OP VAL DST DATA NONCE ( SIG : SIGS )
     => #toSignedMsg OP VAL DST DATA NONCE SIG
        : #toLstSignedMsg OP VAL DST DATA NONCE SIGS
 
@@ -74,16 +80,19 @@ module MINISIG-TYPES
                  | "DELEGATECALL_DST_EMPTY_CODE"
                  | "ZERO_ADDRESS_SIGNER"
                  | "EMPTY_SIGNERS"
-                 | "SIGS_UNORDERED"
+                 | "SIGNERS_UNORDERED"
                  | "INSUFFICIENT_VALID_SIGS"
                  | "INVALID_POSTSTATE"
                  | "CALL_FAILED"
+                 | "INVALID_THRESHOLD"
+                 | "INSUFFICIENT_SIGNERS"
                  | "UNSPECIFIED"
 
   syntax FnDetails ::= "fn_nonce()"
                      | "fn_threshold()"
                      | "fn_DOMAIN_SEPARATOR()"
                      | "fn_allSigners()"
+                     | "fn_constructor" "(" Int "," LstAddress ")"
                      | "fn_execute" "(" CallType
                                     "," Int
                                     "," Address
@@ -98,6 +107,7 @@ module MINISIG-TYPES
                      "," "data:" Data "}"
 
   syntax RetVal ::= ".RetVal"
+                  | String
                   | Bool
                   | Int
                   | Set
@@ -110,11 +120,17 @@ module MINISIG-TYPES
   rule #take N ( X : XS )    => X : ( #take (N -Int 1) XS )
     requires N >Int 0
 
+  syntax Int ::= "#len" LstAddress  [function]
+  rule #len .LstAddress => 0
+  rule #len ( _ : XS ) => 1 +Int ( #len XS )
+
   syntax Set ::= "#toSet" LstAddress [function]
   rule #toSet .LstAddress => .Set
   rule #toSet X : XS => SetItem(X) ( #toSet XS )
 
-  syntax Int ::= "pow256" // 2 ^ 256
+  syntax Int ::= "pow8"   // 2 ^ 8
+               | "pow256" // 2 ^ 256
+  rule pow8   => 256 [macro]
   rule pow256 => 115792089237316195423570985008687907853269984665640564039457584007913129639936 [macro]
 
 endmodule

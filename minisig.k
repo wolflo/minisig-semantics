@@ -2,9 +2,8 @@ requires "syntax.k"
 requires "types.k"
 
 // TODO
-// - constructor
 // - testing harness
-// - would be nice if reverted fn still added to fn-log
+// - fallback function
 module MINISIG
   imports MINISIG-SYNTAX
   imports MINISIG-TYPES
@@ -13,31 +12,34 @@ module MINISIG
     <msig>
       <k>  $PGM:Tx </k>
 
+      <msig-state>
+        <nonce> 0:Int </nonce>
+        <domSep> "" </domSep>
+        <threshold> 0:Int </threshold>
+        <balance> 4:Int </balance>
+        <signers> .Set </signers>
+      </msig-state>
+
       <call>
         <callvalue> 0:Int </callvalue>
         <returndata> .RetVal </returndata>
         <status> .Status </status>
       </call>
 
-      <msig-state>
-        <nonce> 1:Int </nonce>
-        <domSep> 2:Int </domSep>
-        <threshold> 2:Int </threshold>
-        <balance> 4:Int </balance>
-        <signers> SetItem(55) SetItem(56) SetItem(3) SetItem(0) </signers>
-      </msig-state>
+      <log>
+        <fn-log> .List </fn-log> // functions that are run on this contract
+        <return-log> .List </return-log> // data returned from this contract
+        <call-log> .List </call-log>  // calls made from this contract
+      </log>
 
-      <prestate> .K </prestate>
-      <fn-log> .List </fn-log> // functions that are run on this contract
-      <return-log> .List </return-log> // data returned from this contract
-      <call-log> .List </call-log>  // calls made from this contract
+      <prestate> .K </prestate> // used internally for state rollback
 
       <world>
         <ecrecover>
-          {sig:"foo1", nonce:1, op:Call, val:1, dst:77, data:"data1"} |-> 55
-          {sig:"bar1", nonce:1, op:Call, val:1, dst:77, data:"data1"} |-> 56
-          {sig:"foo2", nonce:2, op:Call, val:1, dst:77, data:"data2"} |-> 55
-          {sig:"bar2", nonce:2, op:Call, val:1, dst:77, data:"data2"} |-> 56
+          {sig:"foo1", nonce:0, op:Call, val:1, dst:77, data:"data1"} |-> 55
+          {sig:"bar1", nonce:0, op:Call, val:1, dst:77, data:"data1"} |-> 56
+          {sig:"foo2", nonce:1, op:Call, val:1, dst:77, data:"data2"} |-> 55
+          {sig:"bar2", nonce:1, op:Call, val:1, dst:77, data:"data2"} |-> 56
         </ecrecover> // signature => signer
         <call-success> ListItem(true) ListItem(true) </call-success>
         <codesize> .Map </codesize>  // address => codesize
@@ -74,7 +76,6 @@ module MINISIG
 
   rule
     <k> #return RETVAL => . ...</k>
-    <callvalue> _ => 0 </callvalue>
     <returndata> _ => RETVAL </returndata>
     <return-log> (.List => ListItem ( RETVAL )) ...</return-log>
 
@@ -82,6 +83,7 @@ module MINISIG
   rule
     <k> #finalize => . ...</k>
     <status> _ => MSIG_SUCCESS </status>
+    <callvalue> _ => 0 </callvalue>
 
   // --- state rollbacks ---
 
@@ -103,6 +105,37 @@ module MINISIG
     <prestate> _ => .K </prestate>
 
 
+  // --- Constructor ---
+  // -------------------
+
+  rule
+    <k> Cstr ( THRESH , SIGNERS )
+      => #checkNonzeroHead SIGNERS  // first signer cant be zero
+      ~> #checkAscOrder SIGNERS     // check order of signers
+      ~> #return .RetVal
+      ~> #finalize
+    ...
+    </k>
+    <callvalue> CALLVAL </callvalue>
+    <nonce> _ => 0 </nonce>
+    <domSep> _ => "domain_separator" </domSep> // TODO
+    <threshold> _ => THRESH </threshold>
+    <signers> _ => #toSet SIGNERS </signers> // TODO this does not specify that stored signers should remain ordered
+    <balance> BAL => BAL +Int CALLVAL </balance>
+  requires
+    THRESH >Int 0 andBool THRESH <Int pow8
+    andBool #len SIGNERS >=Int THRESH
+    andBool (BAL +Int CALLVAL) <Int pow256 // alternative unspecified
+
+  rule Cstr ( THRESH , _ ) => #revert INVALID_THRESHOLD
+    requires
+      THRESH ==Int 0
+      orBool THRESH >=Int pow8
+
+  rule Cstr ( THRESH , SIGNERS ) => #revert INSUFFICIENT_SIGNERS
+    requires #len SIGNERS <Int THRESH
+
+
   // --- Execute ---
   // ---------------
 
@@ -111,7 +144,6 @@ module MINISIG
   rule
     <k> Exec ( OP , VAL , DST , DATA , SIGS )
       => #exec OP VAL DST DATA ( #toLstSignedMsg OP VAL DST DATA NONCE SIGS )
-      ~> #finalize
     ...
     </k>
     <nonce> NONCE </nonce>
@@ -122,6 +154,7 @@ module MINISIG
       ~> #mkCall OP VAL DST DATA
       ~> #checkPoststate OP ( NONCE +Int 1 )
       ~> #return true
+      ~> #finalize
     ...
     </k>
     <callvalue> CALLVAL </callvalue>
@@ -143,7 +176,6 @@ module MINISIG
     ...
     </k>
     <threshold> THRESH </threshold>
-
 
   // -- balance must be sufficient for call
   syntax OpRequire ::= "#checkVal" Int
@@ -199,6 +231,7 @@ module MINISIG
 
   rule #ecrec _ .LstSignedMsg => .LstAddress
 
+  // ecrec returns 0 on failure
   rule #ecrec RHO:Map ( SMSG : SMSGS )
     => { RHO [ SMSG ] orDefault 0 }:>Address : ( #ecrec RHO SMSGS )
 
@@ -212,7 +245,7 @@ module MINISIG
   rule #checkNonzeroHead X : _       => #revert ZERO_ADDRESS_SIGNER
     requires X ==Int 0
 
-  // -- require recovered signers to be in ascending order
+  // -- require addresses to be in ascending order
   syntax OpRequire ::= "#checkAscOrder" LstAddress
 
   rule #checkAscOrder _ : .LstAddress  => .
@@ -220,7 +253,7 @@ module MINISIG
   rule #checkAscOrder X1 : X2 : XS => #checkAscOrder X2 : XS
     requires X1 <Int X2
 
-  rule #checkAscOrder X1 : X2 : _  => #revert SIGS_UNORDERED
+  rule #checkAscOrder X1 : X2 : _  => #revert SIGNERS_UNORDERED
     requires X1 >=Int X2
 
   // -- assert | recovered_signers \intersect signers | >= threshold
@@ -248,8 +281,8 @@ module MINISIG
   // - assert call succeeded
   // - if delegatecall, assert that nonce is unchanged from before call
 
-  // call_success /\ op == delegate_call => nonce_unchanged
-  // call_success /\ not(op == delegate_call) \/ nonce_unchanged
+  // call_success /\ ( op == delegate_call => nonce_unchanged )
+  // call_success /\ ( not(op == delegate_call) \/ nonce_unchanged )
   rule
     <k> #checkPoststate OP NONCE_PRECALL => . ...</k>
     <call-success> ( ListItem ( CALLRET ) => .List ) ...</call-success>
