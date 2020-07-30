@@ -17,7 +17,7 @@ module MINISIG
         <domSep> "" </domSep>
         <threshold> 0:Int </threshold>
         <balance> 4:Int </balance>
-        <signers> .Set </signers>
+        <signers> .LstAddress </signers>
       </msig-state>
 
       <call>
@@ -120,7 +120,7 @@ module MINISIG
     <nonce> _ => 0 </nonce>
     <domSep> _ => "domain_separator" </domSep> // TODO
     <threshold> _ => THRESH </threshold>
-    <signers> _ => #toSet SIGNERS </signers> // TODO this does not specify that stored signers should remain ordered
+    <signers> _ => SIGNERS </signers>
     <balance> BAL => BAL +Int CALLVAL </balance>
   requires
     THRESH >Int 0 andBool THRESH <Int pow8
@@ -219,7 +219,7 @@ module MINISIG
     <k> #checkSigs SMSGS
       => #checkNonzeroHead ( #ecrec RHO SMSGS )
       ~> #checkAscOrder ( #ecrec RHO SMSGS )
-      ~> #checkSizeCap THRESH SIGNERS ( #toSet ( #ecrec RHO SMSGS ) )
+      ~> #checkSizeCap THRESH SIGNERS ( #ecrec RHO SMSGS )
     ...
     </k>
     <ecrecover> RHO </ecrecover>
@@ -257,13 +257,13 @@ module MINISIG
     requires X1 >=Int X2
 
   // -- assert | recovered_signers \intersect signers | >= threshold
-  syntax OpRequire ::= "#checkSizeCap" Int Set Set
+  syntax OpRequire ::= "#checkSizeCap" Int LstAddress LstAddress
 
-  rule #checkSizeCap N S1 S2 => .K
-    requires size ( intersectSet ( S1 , S2 ) ) >=Int N
+  rule #checkSizeCap N Lst1 Lst2 => .K
+    requires size ( intersectSet ( #toSet Lst1 , #toSet Lst2 ) ) >=Int N
 
-  rule #checkSizeCap N S1 S2 => #revert INSUFFICIENT_VALID_SIGS
-    requires size ( intersectSet ( S1 , S2) ) <Int N
+  rule #checkSizeCap N Lst1 Lst2 => #revert INSUFFICIENT_VALID_SIGS
+    requires size ( intersectSet ( #toSet Lst1 , #toSet Lst2 ) ) <Int N
 
   // --- make external call ---
   syntax OpInternal ::= "#mkCall" CallType Int Address Data
