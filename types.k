@@ -15,6 +15,7 @@ module MINISIG-TYPES
 
   syntax OpExec ::= "Exec" "(" CallType
                            "," Int
+                           "," Int
                            "," Address
                            "," Data
                            "," LstSig ")"
@@ -22,7 +23,6 @@ module MINISIG-TYPES
   syntax OpCstr ::= "Cstr" "(" Int "," LstAddress ")"
 
   syntax OpLog ::= "#log" FnDetails
-
   syntax OpSet ::= "#set" Opt
 
   syntax Exp ::= OpView
@@ -30,6 +30,7 @@ module MINISIG-TYPES
                | OpLog
                | OpCstr
 
+  // if options are provided, set the options then execute the function
   rule FN { OPTS } PARAMS => #set OPTS ~> FN PARAMS   [simplification]
 
   rule nonce()          => #log fn_nonce()
@@ -41,9 +42,9 @@ module MINISIG-TYPES
   rule DOMAIN_SEPARATOR => #log fn_DOMAIN_SEPARATOR()
                         ~> View ( DomSep)             [simplification]
 
-  rule execute ( OP, VAL, DST, DATA, [ SIGS ] )
-    => #log fn_execute ( OP , VAL , DST , DATA , [ SIGS ] )
-    ~> Exec ( OP , VAL , DST , DATA , SIGS )  [simplification]
+  rule execute ( OP, GAS, VAL, DST, DATA, [ SIGS ] )
+    => #log fn_execute ( OP , GAS , VAL , DST , DATA , [ SIGS ] )
+    ~> Exec ( OP , GAS , VAL , DST , DATA , SIGS )    [simplification]
 
   rule constructor ( THRESHOLD , [ SIGNERS ] )
     => #log fn_constructor ( THRESHOLD , SIGNERS)
@@ -51,27 +52,28 @@ module MINISIG-TYPES
 
   // --- Signatures ---
 
-  syntax SignedMsg ::= "{" "sig:" Sig
+  syntax SignedMsg ::= "{" "sig:"   Sig
+                       "," "op:"    CallType
                        "," "nonce:" Int
-                       "," "op:" CallType
-                       "," "val:" Int
-                       "," "dst:" Address
-                       "," "data:" Data "}"
+                       "," "gas:" Int
+                       "," "val:"   Int
+                       "," "dst:"   Address
+                       "," "data:"  Data "}"
 
   syntax LstSignedMsg ::= List{SignedMsg, ":"}
 
-  syntax SignedMsg ::= "#toSignedMsg" CallType Int Address Data Int Sig [function]
+  syntax SignedMsg ::= "#toSignedMsg" CallType Int Int Address Data Int Sig [function]
 
-  rule #toSignedMsg OP VAL DST DATA NONCE SIG
-    => { sig: SIG, nonce: NONCE, op: OP, val: VAL, dst: DST, data: DATA }
+  rule #toSignedMsg OP GAS VAL DST DATA NONCE SIG
+    => { sig: SIG, op: OP, nonce: NONCE, gas: GAS, val: VAL, dst: DST, data: DATA }
 
-  syntax LstSignedMsg ::= "#toLstSignedMsg" CallType Int Address Data Int LstSig [function]
+  syntax LstSignedMsg ::= "#toLstSignedMsg" CallType Int Int Address Data Int LstSig [function]
 
-  rule #toLstSignedMsg _ _ _ _ _ .LstSig => .LstSignedMsg
+  rule #toLstSignedMsg _ _ _ _ _ _ .LstSig => .LstSignedMsg
 
-  rule #toLstSignedMsg OP VAL DST DATA NONCE ( SIG : SIGS )
-    => #toSignedMsg OP VAL DST DATA NONCE SIG
-       : #toLstSignedMsg OP VAL DST DATA NONCE SIGS
+  rule #toLstSignedMsg OP GAS VAL DST DATA NONCE ( SIG : SIGS )
+    => #toSignedMsg OP GAS VAL DST DATA NONCE SIG
+       : #toLstSignedMsg OP GAS VAL DST DATA NONCE SIGS
 
   // --- Errors and Logs ---
 
@@ -99,6 +101,7 @@ module MINISIG-TYPES
                      | "fn_constructor" "(" Int "," LstAddress ")"
                      | "fn_execute" "(" CallType
                                     "," Int
+                                    "," Int
                                     "," Address
                                     "," Data
                                     "," "[" LstSig "]" ")"
@@ -106,6 +109,7 @@ module MINISIG-TYPES
   syntax FnLog ::= "{" "fn:" FnDetails "," "callvalue:"  Int "}"
 
   syntax CallLog ::= "{" "op:"   CallType
+                     "," "gas:"  Int
                      "," "val:"  Int
                      "," "dst:"  Address
                      "," "data:" Data "}"

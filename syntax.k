@@ -11,7 +11,6 @@ module MINISIG-SYNTAX
 
 
   syntax Opt ::= "value:" Int
-  /* syntax FnOpt ::= "{" Opt "}" */
 
   syntax FnView     ::= "nonce"
                       | "threshold"
@@ -20,29 +19,16 @@ module MINISIG-SYNTAX
   syntax ViewParams ::= "(" ")"
 
   syntax FnExec     ::= "execute"
-  syntax ExecParams ::= "(" CallType
-                        "," Int
-                        "," Address
-                        "," Data
-                        "," "[" LstSig "]" ")"
+  syntax ExecParams ::= "(" CallType                // call or delegatecall
+                        "," Int                     // gas to send with call
+                        "," Int                     // value to send with call
+                        "," Address                 // destination of call
+                        "," Data                    // data to send with call
+                        "," "[" LstSig "]" ")"      // list of signatures
 
   syntax FnCstr     ::= "constructor"
-  syntax CstrParams ::= "(" Int "," "[" LstAddress "]" ")"
-
-
-
-  /* execute(CallType _callType
-            , uint256 _value
-            , address _target
-            , bytes calldata _data
-            , bytes calldata _sigs)
-            payable returns (bool) */
-  /* syntax FnExec ::= "execute" "(" CallType */
-  /*                                   "," Int */
-  /*                                   "," Address */
-  /*                                   "," Data */
-  /*                                   "," "[" LstSig "]" ")" */
-
+  syntax CstrParams ::= "(" Int                     // threshold
+                        "," "[" LstAddress "]" ")"  // list of signers
 
   syntax Fn ::= FnView
               | FnExec

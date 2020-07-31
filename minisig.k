@@ -26,6 +26,7 @@ module MINISIG
         <callvalue> 0:Int </callvalue>
         <returndata> .RetVal </returndata>
         <status> .Status </status>
+        <gas> 0:Int </gas>
       </call>
 
       <log>
@@ -38,13 +39,14 @@ module MINISIG
 
       <world>
         <ecrecover>
-          {sig:"foo1", nonce:0, op:Call, val:1, dst:77, data:"data1"} |-> 55
-          {sig:"bar1", nonce:0, op:Call, val:1, dst:77, data:"data1"} |-> 56
-          {sig:"foo2", nonce:1, op:Call, val:1, dst:77, data:"data2"} |-> 55
-          {sig:"bar2", nonce:1, op:Call, val:1, dst:77, data:"data2"} |-> 56
+          {sig:"foo1", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data1"} |-> 55
+          {sig:"bar1", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data1"} |-> 56
+          {sig:"foo2", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data2"} |-> 55
+          {sig:"bar2", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data2"} |-> 56
         </ecrecover> // signature => signer
         <call-success> ListItem(true) ListItem(true) </call-success>
         <codesize> .Map </codesize>  // address => codesize
+        <gas-used-pre-call> 0:Int </gas-used-pre-call>
       </world>
 
     </msig>
@@ -148,19 +150,19 @@ module MINISIG
   // --- Execute ---
   // ---------------
 
-  syntax OpInternal ::= "#exec" CallType Int Address Data LstSignedMsg
+  syntax OpInternal ::= "#exec" CallType Int Int Address Data LstSignedMsg
 
   rule
-    <k> Exec ( OP , VAL , DST , DATA , SIGS )
-      => #exec OP VAL DST DATA ( #toLstSignedMsg OP VAL DST DATA NONCE SIGS )
+    <k> Exec ( OP , GAS , VAL , DST , DATA , SIGS )
+      => #exec OP GAS VAL DST DATA ( #toLstSignedMsg OP GAS VAL DST DATA NONCE SIGS )
     ...
     </k>
     <nonce> NONCE </nonce>
 
   rule
-    <k> #exec OP VAL DST DATA SMSGS
+    <k> #exec OP GAS VAL DST DATA SMSGS
       => #checkPrestate OP VAL DST SMSGS
-      ~> #mkCall OP VAL DST DATA
+      ~> #mkCall OP GAS VAL DST DATA
       ~> #checkPoststate OP ( NONCE +Int 1 )
       ~> #return true
       ~> #finalize
@@ -275,11 +277,12 @@ module MINISIG
     requires size ( intersectSet ( #toSet Lst1 , #toSet Lst2 ) ) <Int N
 
   // --- make external call ---
-  syntax OpInternal ::= "#mkCall" CallType Int Address Data
+  syntax OpInternal ::= "#mkCall" CallType Int Int Address Data
   rule
-    <k> #mkCall OP VAL DST DATA => . ...</k>
+    <k> #mkCall OP GAS VAL DST DATA => . ...</k>
     <call-log>
       .List => ListItem( { op: OP
+                         , gas: GAS
                          , val: #if OP ==K DelegateCall #then CALLVAL #else VAL #fi
                          , dst: DST
                          , data: DATA } )
