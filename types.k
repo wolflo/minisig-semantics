@@ -23,7 +23,7 @@ module MINISIG-TYPES
   syntax OpCstr ::= "Cstr" "(" Int "," LstAddress ")"
 
   syntax OpLog ::= "#log" FnDetails
-  syntax OpSet ::= "#set" Opt
+  syntax OpSet ::= "#set" LstOpt
 
   syntax Exp ::= OpView
                | OpExec
@@ -92,6 +92,7 @@ module MINISIG-TYPES
                  | "CALL_FAILED"
                  | "INVALID_THRESHOLD"
                  | "INSUFFICIENT_SIGNERS"
+                 | "INSUFFICIENT_CALLGAS"
                  | "UNSPECIFIED"
 
   syntax FnDetails ::= "fn_nonce()"
@@ -106,7 +107,9 @@ module MINISIG-TYPES
                                     "," Data
                                     "," "[" LstSig "]" ")"
 
-  syntax FnLog ::= "{" "fn:" FnDetails "," "callvalue:"  Int "}"
+  syntax FnLog ::= "{" "fn:"        FnDetails
+                   "," "callvalue:" Int
+                   "," "callgas:"   Int "}"
 
   syntax CallLog ::= "{" "op:"   CallType
                      "," "gas:"  Int
@@ -140,5 +143,9 @@ module MINISIG-TYPES
                | "pow256" // 2 ^ 256
   rule pow8   => 256 [macro]
   rule pow256 => 115792089237316195423570985008687907853269984665640564039457584007913129639936 [macro]
+
+  // the overhead required to check that gas remaing >= gas to send with call
+  syntax Int ::= "gasCheckOverhead"
+  rule gasCheckOverhead => 2  [macro]
 
 endmodule

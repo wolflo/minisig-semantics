@@ -13,6 +13,7 @@ module MINISIG
   configuration
     <msig>
       <k>  $PGM:Tx </k>
+      <status> .Status </status>
 
       <msig-state>
         <nonce> 0:Int </nonce>
@@ -25,8 +26,7 @@ module MINISIG
       <call>
         <callvalue> 0:Int </callvalue>
         <returndata> .RetVal </returndata>
-        <status> .Status </status>
-        <gas> 0:Int </gas>
+        <callgas> 0:Int </callgas>
       </call>
 
       <log>
@@ -39,35 +39,48 @@ module MINISIG
 
       <world>
         <ecrecover>
-          {sig:"foo1", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data1"} |-> 55
-          {sig:"bar1", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data1"} |-> 56
-          {sig:"foo2", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data2"} |-> 55
-          {sig:"bar2", op:Call, nonce:0, gas:100, val:1, dst:77, data:"data2"} |-> 56
+          {sig:"foo1", op:Call, nonce:0, gas:5, val:1, dst:77, data:"data1"} |-> 55
+          {sig:"bar1", op:Call, nonce:0, gas:5, val:1, dst:77, data:"data1"} |-> 56
+          {sig:"foo2", op:Call, nonce:1, gas:5, val:1, dst:77, data:"data2"} |-> 55
+          {sig:"bar2", op:Call, nonce:1, gas:5, val:1, dst:77, data:"data2"} |-> 56
         </ecrecover> // signature => signer
         <call-success> ListItem(true) ListItem(true) </call-success>
         <codesize> .Map </codesize>  // address => codesize
-        <gas-used-pre-call> 0:Int </gas-used-pre-call>
+        <gas-used-pre-call> 10:Int </gas-used-pre-call>
       </world>
 
     </msig>
 
 
   // --- sequence expressions ---
-  rule E1:Exp E2:Exp => E1 ~> E2                        [simplification]
-  rule T1:Tx T2:Tx   => T1 ~> T2                        [simplification]
-  rule sendTx E:Exp  => #pushState ~> E ~> #dropState   [simplification]
+  rule E1:Exp E2:Exp => E1 ~> E2
+  rule T1:Tx T2:Tx   => T1 ~> T2
+  rule sendTx E:Exp  => #pushState ~> E ~> #dropState
 
   // --- log function calls ---
   rule
     <k> #log FN => . ...</k>
+    <callgas> CALLGAS </callgas>
     <callvalue> CALLVAL </callvalue>
-    <fn-log> (.List => ListItem( { fn: FN, callvalue: CALLVAL } )) ...</fn-log>
+    <fn-log>
+      (.List => ListItem( { fn: FN , callvalue: CALLVAL , callgas: CALLGAS } ))
+    ...
+    </fn-log>
 
   // --- set call prestate ---
+  syntax OpSet ::= "#set1" Opt
+  rule #set ( OPT , OPTS ) => #set1 OPT ~> #set OPTS
+  rule #set .LstOpt => .K
+
   rule
-    <k> #set ( value: VAL ) => .K ...</k>
+    <k> #set1 ( value: VAL ) => .K ...</k>
     <callvalue> _ => VAL </callvalue>
   requires VAL >=Int 0 andBool VAL <Int pow256
+
+  rule
+    <k> #set1 ( gas: GAS ) => .K ...</k>
+    <callgas> _ => GAS </callgas>
+  requires GAS >=Int 0 andBool GAS <Int pow256
 
   // --- function resolution ---
 
@@ -279,18 +292,28 @@ module MINISIG
   // --- make external call ---
   syntax OpInternal ::= "#mkCall" CallType Int Int Address Data
   rule
-    <k> #mkCall OP GAS VAL DST DATA => . ...</k>
+    <k> #mkCall OP TXGAS VAL DST DATA => . ...</k>
     <call-log>
       .List => ListItem( { op: OP
-                         , gas: GAS
+                         , gas: TXGAS
                          , val: #if OP ==K DelegateCall #then CALLVAL #else VAL #fi
                          , dst: DST
                          , data: DATA } )
     ...
     </call-log>
+    <callgas> CALLGAS </callgas>
     <callvalue> CALLVAL </callvalue>
     <balance> BAL => BAL -Int VAL </balance>
-  requires BAL >=Int VAL // this should always hold at this point
+    <gas-used-pre-call> GASUSED </gas-used-pre-call>
+  requires
+    CALLGAS -Int GASUSED >=Int ( TXGAS +Int gasCheckOverhead )
+    andBool BAL >=Int VAL // this should always hold at this point
+
+  rule
+    <k> #mkCall _ TXGAS _ _ _ => #revert INSUFFICIENT_CALLGAS ...</k>
+    <callgas> CALLGAS </callgas>
+    <gas-used-pre-call> GASUSED </gas-used-pre-call>
+  requires CALLGAS -Int GASUSED <Int ( TXGAS +Int gasCheckOverhead )
 
   // --- check result of call and nonce (if delegatecall) ---
   syntax OpRequire ::= "#checkPoststate" CallType Int

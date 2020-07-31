@@ -1,16 +1,18 @@
 module MINISIG-SYNTAX
   imports DOMAINS-SYNTAX
 
-  syntax CallType ::= "Call" | "DelegateCall"
   syntax Sig      ::= String
   syntax Data     ::= String
   syntax Address  ::= Int
+  syntax CallType ::= "Call"
+                    | "DelegateCall"
 
   syntax LstSig     ::= List{Sig, ":"}
   syntax LstAddress ::= List{Address, ":"}
 
-
-  syntax Opt ::= "value:" Int
+  syntax Opt    ::= "gas:"   Int
+                  | "value:" Int
+  syntax LstOpt ::= List{Opt, ","}
 
   syntax FnView     ::= "nonce"
                       | "threshold"
@@ -39,7 +41,7 @@ module MINISIG-SYNTAX
                   | CstrParams
 
   syntax Exp ::= Fn Params
-               | Fn "{" Opt "}" Params
+               | Fn "{" LstOpt "}" Params
                | Exp Exp  [left]
 
   syntax Tx ::= "sendTx" Exp
