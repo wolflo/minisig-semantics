@@ -83,6 +83,7 @@ module MINISIG-TYPES
 
   syntax Error ::= "INVALID_VAL"
                  | "INVALID_CALLVAL"
+                 | "DELEGATECALL_INVALID_CALLVAL"
                  | "DELEGATECALL_DST_EMPTY_CODE"
                  | "ZERO_ADDRESS_SIGNER"
                  | "EMPTY_SIGNERS"

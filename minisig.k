@@ -1,11 +1,11 @@
 requires "types.k"
 
 // TODO
-// - testing harness
 // - fallback function
-// - specify gas (but no deductions) -- if we have less than specified gas + {swap_cost}
-//   at call time, revert
-// - domain separator included in signed messages? -- actually, we dont speciffy anything related to eip712
+// - rewrites that arent a step but involve sequencing
+// - which value should be signed in the case of a delegatecall?
+  // - the provided value argument or the callvalue?
+  // - OR, require callval == valarg for delegatecall
 module MINISIG
   imports MINISIG-TYPES
 
@@ -188,7 +188,7 @@ module MINISIG
 
   rule
     <k> #checkPrestate OP VAL DST SMSGS
-      => #checkVal VAL
+      => #checkVal OP VAL
       ~> #checkDst OP DST
       ~> #checkSigs ( #take THRESH SMSGS )
     ...
@@ -196,17 +196,30 @@ module MINISIG
     <threshold> THRESH </threshold>
 
   // -- balance must be sufficient for call
-  syntax OpRequire ::= "#checkVal" Int
+  syntax OpRequire ::= "#checkVal" CallType Int
 
   rule
-    <k> #checkVal VAL => #revert INVALID_VAL ...</k>
+    <k> #checkVal _ VAL => #revert INVALID_VAL ...</k>
     <balance> BAL </balance>
   requires VAL >Int BAL
 
   rule
-    <k> #checkVal VAL => . ...</k>
+    <k> #checkVal DelegateCall VAL => #revert DELEGATECALL_INVALID_CALLVAL ...</k>
+    <callvalue> CALLVAL </callvalue>
+  requires notBool VAL ==Int CALLVAL
+
+  rule
+    <k> #checkVal Call VAL => . ...</k>
     <balance> BAL </balance>
-  requires notBool VAL >Int BAL
+  requires VAL <=Int BAL
+
+  rule
+    <k> #checkVal DelegateCall VAL => . ...</k>
+    <callvalue> CALLVAL </callvalue>
+    <balance> BAL </balance>
+  requires
+    VAL <=Int BAL
+    andBool VAL ==Int CALLVAL
 
   // -- delegatecall requires that codesize(dstAddress) > 0
   syntax OpRequire ::= "#checkDst" CallType Address
