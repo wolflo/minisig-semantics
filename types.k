@@ -23,19 +23,23 @@ module MINISIG-TYPES
 
   syntax OpLog ::= "#log" FnDetails
 
+  syntax OpSet ::= "#set" Opt
+
   syntax Exp ::= OpView
                | OpExec
                | OpLog
                | OpCstr
 
-  rule nonce()            => #log fn_nonce()            ~> View ( Nonce )
-    [simplification]
-  rule threshold()        => #log fn_threshold()        ~> View ( Thresh )
-    [simplification]
-  rule allSigners()       => #log fn_allSigners()       ~> View ( Signers )
-    [simplification]
-  rule DOMAIN_SEPARATOR() => #log fn_DOMAIN_SEPARATOR() ~> View ( DomSep)
-    [simplification]
+  rule FN { OPTS } PARAMS => #set OPTS ~> FN PARAMS   [simplification]
+
+  rule nonce()          => #log fn_nonce()
+                        ~> View ( Nonce )             [simplification]
+  rule threshold        => #log fn_threshold()
+                        ~> View ( Thresh )            [simplification]
+  rule allSigners       => #log fn_allSigners()
+                        ~> View ( Signers )           [simplification]
+  rule DOMAIN_SEPARATOR => #log fn_DOMAIN_SEPARATOR()
+                        ~> View ( DomSep)             [simplification]
 
   rule execute ( OP, VAL, DST, DATA, [ SIGS ] )
     => #log fn_execute ( OP , VAL , DST , DATA , [ SIGS ] )

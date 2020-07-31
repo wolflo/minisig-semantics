@@ -4,6 +4,8 @@ requires "types.k"
 // TODO
 // - testing harness
 // - fallback function
+// - specify gas (but no deductions) -- if we have less than specified gas + {swap_cost}
+//   at call time, revert
 module MINISIG
   imports MINISIG-SYNTAX
   imports MINISIG-TYPES
@@ -47,6 +49,7 @@ module MINISIG
 
     </msig>
 
+
   // --- sequence expressions ---
   rule E1:Exp E2:Exp => E1 ~> E2                        [simplification]
   rule T1:Tx T2:Tx   => T1 ~> T2                        [simplification]
@@ -57,6 +60,12 @@ module MINISIG
     <k> #log FN => . ...</k>
     <callvalue> CALLVAL </callvalue>
     <fn-log> (.List => ListItem( { fn: FN, callvalue: CALLVAL } )) ...</fn-log>
+
+  // --- set call prestate ---
+  rule
+    <k> #set ( value: VAL ) => .K ...</k>
+    <callvalue> _ => VAL </callvalue>
+  requires VAL >=Int 0 andBool VAL <Int pow256
 
   // --- function resolution ---
 
