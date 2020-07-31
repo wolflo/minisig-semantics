@@ -270,9 +270,13 @@ module MINISIG
   rule
     <k> #mkCall OP VAL DST DATA => . ...</k>
     <call-log>
-      .List => ListItem( { op:OP, val:VAL, dst:DST, data:DATA } )
+      .List => ListItem( { op: OP
+                         , val: #if OP ==K DelegateCall #then CALLVAL #else VAL #fi
+                         , dst: DST
+                         , data: DATA } )
     ...
     </call-log>
+    <callvalue> CALLVAL </callvalue>
     <balance> BAL => BAL -Int VAL </balance>
   requires BAL >=Int VAL // this should always hold at this point
 
