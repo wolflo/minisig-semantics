@@ -1,0 +1,3 @@
+setState signers := [ 101 : 202 : 303 ]
+
+sendTx allSigners()

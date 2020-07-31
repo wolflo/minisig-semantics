@@ -1,0 +1,64 @@
+<msig>
+  <k>
+    .
+  </k>
+  <status>
+    MSIG_SUCCESS
+  </status>
+  <msig-state>
+    <nonce>
+      0
+    </nonce>
+    <domSep>
+      "the times 03/jan/2009"
+    </domSep>
+    <threshold>
+      0
+    </threshold>
+    <balance>
+      0
+    </balance>
+    <signers>
+      .LstAddress
+    </signers>
+  </msig-state>
+  <call>
+    <callvalue>
+      0
+    </callvalue>
+    <returndata>
+      "the times 03/jan/2009"
+    </returndata>
+    <callgas>
+      0
+    </callgas>
+  </call>
+  <log>
+    <fn-log>
+      ListItem ( { fn: fn_DOMAIN_SEPARATOR() , callvalue: 0 , callgas: 0 } )
+    </fn-log>
+    <return-log>
+      ListItem( "the times 03/jan/2009" )
+    </return-log>
+    <call-log>
+      .List
+    </call-log>
+  </log>
+  <prestate>
+    .
+  </prestate>
+  <world>
+    <ecrecover>
+      .Map
+    </ecrecover>
+    <call-success>
+      .List
+    </call-success>
+    <codesize>
+      .Map
+    </codesize>
+    <gas-used-pre-call>
+      0
+    </gas-used-pre-call>
+  </world>
+</msig>

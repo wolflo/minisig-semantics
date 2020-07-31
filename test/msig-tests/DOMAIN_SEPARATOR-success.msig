@@ -1,0 +1,3 @@
+setState domSep := "the times 03/jan/2009"
+
+sendTx DOMAIN_SEPARATOR()

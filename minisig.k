@@ -363,7 +363,7 @@ module MINISIG
   rule
     <k> View ( _ ) => #revert INVALID_CALLVAL ...</k>
     <callvalue> CALLVAL </callvalue>
-  requires notBool CALLVAL ==Int 0
+  requires CALLVAL >Int 0
 
   // nonce()
   rule

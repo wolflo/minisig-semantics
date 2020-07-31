@@ -1,0 +1,3 @@
+setWorld codesize [ 101 ] := 0
+
+sendTx execute(DelegateCall, 0, 0, 101, "data0", [ "sig0" ])

@@ -24,7 +24,8 @@ module TEST-HARNESS-SYNTAX
                  | "setWorld" WorldExp
                  | Setup Setup [left]
 
-  syntax Test ::= Setup
+  syntax Test ::= Tx
+                | Setup
                 | Setup Tx
 
 endmodule

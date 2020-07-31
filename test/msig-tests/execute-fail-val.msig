@@ -1,0 +1,3 @@
+setState balance := 1
+
+sendTx execute(Call, 0, 2, 101, "data0", [ "sig0" ])
