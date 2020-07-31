@@ -1,4 +1,3 @@
-requires "syntax.k"
 requires "types.k"
 
 // TODO
@@ -6,20 +5,20 @@ requires "types.k"
 // - fallback function
 // - specify gas (but no deductions) -- if we have less than specified gas + {swap_cost}
 //   at call time, revert
+// - domain separator included in signed messages? -- actually, we dont speciffy anything related to eip712
 module MINISIG
-  imports MINISIG-SYNTAX
   imports MINISIG-TYPES
 
   configuration
     <msig>
-      <k>  $PGM:Tx </k>
+      <k> $PGM:Tx </k>
       <status> .Status </status>
 
       <msig-state>
         <nonce> 0:Int </nonce>
         <domSep> "" </domSep>
         <threshold> 0:Int </threshold>
-        <balance> 4:Int </balance>
+        <balance> 0:Int </balance>
         <signers> .LstAddress </signers>
       </msig-state>
 
@@ -38,15 +37,10 @@ module MINISIG
       <prestate> .K </prestate> // used internally for state rollback
 
       <world>
-        <ecrecover>
-          {sig:"foo1", op:Call, nonce:0, gas:5, val:1, dst:77, data:"data1"} |-> 55
-          {sig:"bar1", op:Call, nonce:0, gas:5, val:1, dst:77, data:"data1"} |-> 56
-          {sig:"foo2", op:Call, nonce:1, gas:5, val:1, dst:77, data:"data2"} |-> 55
-          {sig:"bar2", op:Call, nonce:1, gas:5, val:1, dst:77, data:"data2"} |-> 56
-        </ecrecover> // signature => signer
-        <call-success> ListItem(true) ListItem(true) </call-success>
+        <ecrecover> .Map </ecrecover> // signature => signer
+        <call-success> .List </call-success>
         <codesize> .Map </codesize>  // address => codesize
-        <gas-used-pre-call> 10:Int </gas-used-pre-call>
+        <gas-used-pre-call> 0:Int </gas-used-pre-call>
       </world>
 
     </msig>
