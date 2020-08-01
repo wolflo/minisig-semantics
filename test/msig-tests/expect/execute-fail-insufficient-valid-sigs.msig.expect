@@ -1,0 +1,66 @@
+<msig>
+  <k>
+    #halt INSUFFICIENT_VALID_SIGS ~> .
+  </k>
+  <status>
+    MSIG_REVERT
+  </status>
+  <msig-state>
+    <nonce>
+      0
+    </nonce>
+    <domSep>
+      ""
+    </domSep>
+    <threshold>
+      2
+    </threshold>
+    <balance>
+      0
+    </balance>
+    <signers>
+      55 : 57 : .LstAddress
+    </signers>
+  </msig-state>
+  <call>
+    <callvalue>
+      0
+    </callvalue>
+    <returndata>
+      .RetVal
+    </returndata>
+    <callgas>
+      0
+    </callgas>
+  </call>
+  <log>
+    <fn-log>
+      ListItem ( { fn: fn_execute (Call, 0, 0, 101, "data0", [ "sigA0" : "sigB0" : "sigC0" : .LstSig ] ), callvalue: 0, callgas: 0 } )
+    </fn-log>
+    <return-log>
+      .List
+    </return-log>
+    <call-log>
+      .List
+    </call-log>
+  </log>
+  <prestate>
+    .
+  </prestate>
+  <world>
+    <ecrecover>
+      {sig: "sigA0", op: Call, nonce: 0, gas: 0, val: 0, dst: 101, data: "data0"} |-> 55
+      {sig: "sigB0", op: Call, nonce: 0, gas: 0, val: 0, dst: 101, data: "data0"} |-> 56
+      {sig: "sigC0", op: Call, nonce: 0, gas: 0, val: 0, dst: 101, data: "data0"} |-> 57
+    </ecrecover>
+    <call-success>
+      .List
+    </call-success>
+    <codesize>
+      .Map
+    </codesize>
+    <gas-used-pre-call>
+      0
+    </gas-used-pre-call>
+  </world>
+</msig>

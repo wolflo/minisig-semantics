@@ -1,0 +1,8 @@
+setWorld
+    ecrecover [ {sig: "sigA0", op: Call, nonce: 0, gas: 0, val: 0, dst: 101, data: "data0"} ] := 55
+    ecrecover [ {sig: "sigB0", op: Call, nonce: 0, gas: 0, val: 0, dst: 101, data: "data0"} ] := 56
+    ecrecover [ {sig: "sigC0", op: Call, nonce: 0, gas: 0, val: 0, dst: 101, data: "data0"} ] := 57
+
+setState threshold := 3
+
+sendTx execute(Call, 0, 0, 101, "data0", [ "sigA0" : "sigC0" : "sigB0" ])

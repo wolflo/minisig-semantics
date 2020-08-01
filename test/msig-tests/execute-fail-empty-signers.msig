@@ -1,0 +1,3 @@
+setState threshold := 1
+
+sendTx execute(Call, 0, 0, 101, "data0", [ ] )

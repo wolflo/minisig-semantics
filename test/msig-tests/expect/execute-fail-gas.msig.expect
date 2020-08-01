@@ -1,0 +1,64 @@
+<msig>
+  <k>
+    #halt INSUFFICIENT_CALLGAS ~> .
+  </k>
+  <status>
+    MSIG_REVERT
+  </status>
+  <msig-state>
+    <nonce>
+      0
+    </nonce>
+    <domSep>
+      ""
+    </domSep>
+    <threshold>
+      1
+    </threshold>
+    <balance>
+      0
+    </balance>
+    <signers>
+      55 : .LstAddress
+    </signers>
+  </msig-state>
+  <call>
+    <callvalue>
+      0
+    </callvalue>
+    <returndata>
+      .RetVal
+    </returndata>
+    <callgas>
+      16
+    </callgas>
+  </call>
+  <log>
+    <fn-log>
+      ListItem ( { fn: fn_execute ( Call , 5 , 0 , 101 , "data0" , [ "sig0" : .LstSig ] ) , callvalue: 0 , callgas: 16 } )
+    </fn-log>
+    <return-log>
+      .List
+    </return-log>
+    <call-log>
+      .List
+    </call-log>
+  </log>
+  <prestate>
+    .
+  </prestate>
+  <world>
+    <ecrecover>
+      {sig: "sig0", op: Call, nonce: 0, gas: 5, val: 0, dst: 101, data: "data0"} |-> 55
+    </ecrecover>
+    <call-success>
+      .List
+    </call-success>
+    <codesize>
+      .Map
+    </codesize>
+    <gas-used-pre-call>
+      10
+    </gas-used-pre-call>
+  </world>
+</msig>

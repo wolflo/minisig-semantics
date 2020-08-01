@@ -1,0 +1,10 @@
+setWorld
+    gas-used-pre-call := 10
+    ecrecover [ {sig:"sig0", op:Call, nonce:0, gas:5, val:0, dst:101, data:"data0"} ] := 55
+
+setState
+    threshold := 1
+    signers   := [ 55 ]
+
+sendTx
+    execute{gas: 16}(Call, 5, 0, 101, "data0", [ "sig0" ])

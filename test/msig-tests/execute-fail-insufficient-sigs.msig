@@ -1,0 +1,8 @@
+setWorld
+    ecrecover [ {sig: "sig0", op: Call, nonce: 0, gas: 0, val: 0, dst: 101, data: "data0"} ] := 55
+
+setState
+    signers   := [ 55 ]
+    threshold := 2
+
+sendTx execute(Call, 0, 0, 101, "data0", [ "sig0" ])

@@ -1,0 +1,8 @@
+setState
+    nonce     := 99
+    balance   := 10
+    threshold := 77
+    signers   := [ 9 : 10 : 11 ]
+    domSep    := "the times 03/jan/2009"
+
+sendTx constructor{value: 10}(3, [ 55 : 56 : 57])
