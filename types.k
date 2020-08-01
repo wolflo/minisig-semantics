@@ -44,11 +44,11 @@ module MINISIG-TYPES
 
   rule execute ( OP, GAS, VAL, DST, DATA, [ SIGS ] )
     => #log fn_execute ( OP , GAS , VAL , DST , DATA , [ SIGS ] )
-    ~> Exec ( OP , GAS , VAL , DST , DATA , SIGS )    [simplification]
+    ~> Exec ( OP , GAS , VAL , DST , DATA , SIGS )      [simplification]
 
   rule constructor ( THRESHOLD , [ SIGNERS ] )
-    => #log fn_constructor ( THRESHOLD , SIGNERS)
-    ~> Cstr ( THRESHOLD , SIGNERS )
+    => #log fn_constructor ( THRESHOLD , [ SIGNERS ] )
+    ~> Cstr ( THRESHOLD , SIGNERS )                     [simplification]
 
   // --- Signatures ---
 
@@ -84,10 +84,11 @@ module MINISIG-TYPES
   syntax Error ::= "INVALID_VAL"
                  | "INVALID_CALLVAL"
                  | "DELEGATECALL_INVALID_CALLVAL"
+                 | "PRESTATE_THRESHOLD_ZERO"
                  | "DELEGATECALL_DST_EMPTY_CODE"
                  | "ZERO_ADDRESS_SIGNER"
                  | "EMPTY_SIGNERS"
-                 | "SIGNERS_UNORDERED"
+                 | "UNORDERED_SIGNERS"
                  | "INSUFFICIENT_VALID_SIGS"
                  | "INVALID_POSTSTATE"
                  | "CALL_FAILED"
@@ -100,7 +101,8 @@ module MINISIG-TYPES
                      | "fn_threshold()"
                      | "fn_DOMAIN_SEPARATOR()"
                      | "fn_allSigners()"
-                     | "fn_constructor" "(" Int "," LstAddress ")"
+                     | "fn_constructor" "(" Int
+                                        "," "[" LstAddress "]" ")"
                      | "fn_execute" "(" CallType
                                     "," Int
                                     "," Int

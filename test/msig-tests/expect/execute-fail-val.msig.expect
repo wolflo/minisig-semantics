@@ -13,7 +13,7 @@
       ""
     </domSep>
     <threshold>
-      0
+      1
     </threshold>
     <balance>
       1

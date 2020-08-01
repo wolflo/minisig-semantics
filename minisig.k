@@ -3,9 +3,6 @@ requires "types.k"
 // TODO
 // - fallback function
 // - rewrites that arent a step but involve sequencing
-// - which value should be signed in the case of a delegatecall?
-  // - the provided value argument or the callvalue?
-  // - OR, require callval == valarg for delegatecall
 module MINISIG
   imports MINISIG-TYPES
 
@@ -194,6 +191,11 @@ module MINISIG
     ...
     </k>
     <threshold> THRESH </threshold>
+  requires THRESH >Int 0
+
+  rule
+    <k> #checkPrestate _ _ _ _ => #revert PRESTATE_THRESHOLD_ZERO ...</k>
+    <threshold> 0 </threshold>
 
   // -- balance must be sufficient for call
   syntax OpRequire ::= "#checkVal" CallType Int
@@ -284,7 +286,7 @@ module MINISIG
   rule #checkAscOrder X1 : X2 : XS => #checkAscOrder X2 : XS
     requires X1 <Int X2
 
-  rule #checkAscOrder X1 : X2 : _  => #revert SIGNERS_UNORDERED
+  rule #checkAscOrder X1 : X2 : _  => #revert UNORDERED_SIGNERS
     requires X1 >=Int X2
 
   // -- assert | recovered_signers \intersect signers | >= threshold
@@ -303,13 +305,12 @@ module MINISIG
     <call-log>
       .List => ListItem( { op: OP
                          , gas: TXGAS
-                         , val: #if OP ==K DelegateCall #then CALLVAL #else VAL #fi
+                         , val: VAL
                          , dst: DST
                          , data: DATA } )
     ...
     </call-log>
     <callgas> CALLGAS </callgas>
-    <callvalue> CALLVAL </callvalue>
     <balance> BAL => BAL -Int VAL </balance>
     <gas-used-pre-call> GASUSED </gas-used-pre-call>
   requires
@@ -338,6 +339,7 @@ module MINISIG
     andBool ( notBool OP ==K DelegateCall
               orBool NONCE_POSTCALL ==Int NONCE_PRECALL )
 
+  // TODO: this rule isnt covered by any test currently
   rule
     <k> #checkPoststate OP NONCE_PRECALL => #revert INVALID_POSTSTATE ...</k>
     <nonce> NONCE_POSTCALL </nonce>
