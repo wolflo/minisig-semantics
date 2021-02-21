@@ -1,11 +1,10 @@
 setWorld
-    ecrecover [ {sig:"sigA1", op:Call, nonce:1, gas:5, val:1, dst:101, data:"data1"} ] := 55
-    ecrecover [ {sig:"sigB1", op:Call, nonce:1, gas:5, val:1, dst:101, data:"data1"} ] := 56
-    ecrecover [ {sig:"sigA2", op:DelegateCall, nonce:2, gas:5, val:1, dst:102, data:"data2"} ] := 55
-    ecrecover [ {sig:"sigB2", op:DelegateCall, nonce:2, gas:5, val:1, dst:102, data:"data2"} ] := 56
+    ecrecover [ {sig:"sigA1", src:Any, dst: 101, op:Call, nonce:1, gas:5, val:1, data:"data1"} ] := 55
+    ecrecover [ {sig:"sigB1", src:Any, dst:101, op:Call, nonce:1, gas:5, val:1, data:"data1"} ] := 56
+    ecrecover [ {sig:"sigA2", src:Any, dst:102, op:DelegateCall, nonce:2, gas:5, val:1, data:"data2"} ] := 55
+    ecrecover [ {sig:"sigB2", src:Any, dst:102, op:DelegateCall, nonce:2, gas:5, val:1, data:"data2"} ] := 56
 
     call-success      := [ true : true ]
-    codesize [ 102 ]  := 100
     gas-used-pre-call := 10
 
 setState
@@ -15,5 +14,5 @@ setState
     signers   := [ 55 : 56 : 57 ]
 
 sendTx
-    execute{value: 10, gas: 17}(Call, 5, 1, 101, "data1", [ "sigA1" : "sigB1" ])
-    execute{value: 1, gas: 17}(DelegateCall, 5, 1, 102, "data2", [ "sigA2" : "sigB2" ])
+    execute{value: 10, gas: 17}(Any, 101, Call, 5, 1, "data1", [ "sigA1" : "sigB1" ])
+    execute{value: 1, gas: 17}(Any, 102, DelegateCall, 5, 1, "data2", [ "sigA2" : "sigB2" ])

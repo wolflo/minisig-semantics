@@ -51,14 +51,6 @@ module TEST-HARNESS
     <gas-used-pre-call> _ => GASUSED </gas-used-pre-call>
 
   rule
-    <k> #set codesize [ ADDR ] := SIZE => . ...</k>
-    <codesize>... ADDR |-> ( _ => SIZE ) ...</codesize>
-  rule
-    <k> #set codesize [ ADDR ] := SIZE => . ...</k>
-    <codesize> RHO:Map ( .Map => ADDR |-> SIZE ) </codesize>
-  requires notBool ADDR in_keys(RHO)
-
-  rule
     <k> #set ecrecover [ SMSG ] := ADDR => . ...</k>
     <ecrecover>... SMSG |-> ( _ => ADDR ) ...</ecrecover>
   rule

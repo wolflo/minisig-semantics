@@ -23,28 +23,31 @@
     </signers>
   </msig-state>
   <call>
+    <caller>
+      0
+    </caller>
     <callvalue>
       0
     </callvalue>
-    <returndata>
-      true
-    </returndata>
     <callgas>
       17
     </callgas>
+    <returndata>
+      .RetVal
+    </returndata>
   </call>
   <log>
     <fn-log>
-      ListItem ( { fn: fn_execute ( DelegateCall , 5 , 1 , 102 , "data2" , [ "sigA2" : "sigB2" : .LstSig ] ) , callvalue: 1 , callgas: 17 } )
-      ListItem ( { fn: fn_execute ( Call , 5 , 1 , 101 , "data1" , [ "sigA1" : "sigB1" : .LstSig ] ) , callvalue: 10 , callgas: 17 } )
+      ListItem ( { fn: fn_execute ( Any , 102 , DelegateCall , 5 , 1 , "data2" , [ "sigA2" : "sigB2" : .LstSig ] ) , caller: 0 , callvalue: 1 , callgas: 17 } )
+      ListItem ( { fn: fn_execute ( Any , 101 , Call , 5 , 1 , "data1" , [ "sigA1" : "sigB1" : .LstSig ] ) , caller: 0 , callvalue: 10 , callgas: 17 } )
     </fn-log>
     <return-log>
-      ListItem ( true )
-      ListItem ( true )
+      ListItem ( .RetVal )
+      ListItem ( .RetVal )
     </return-log>
     <call-log>
-      ListItem ( { op: DelegateCall, gas: 5, val: 1, dst: 102, data: "data2" } )
-      ListItem ( { op: Call, gas: 5, val: 1, dst: 101, data: "data1" } )
+      ListItem ( { dst: 102, op: DelegateCall, gas: 5, val: 1, data: "data2" } )
+      ListItem ( { dst: 101, op: Call, gas: 5, val: 1, data: "data1" } )
     </call-log>
   </log>
   <prestate>
@@ -52,17 +55,14 @@
   </prestate>
   <world>
     <ecrecover>
-      {sig: "sigA1", op: Call, nonce: 1, gas: 5, val: 1, dst: 101, data: "data1"} |-> 55
-      {sig: "sigA2", op: DelegateCall, nonce: 2, gas: 5, val: 1, dst: 102, data: "data2"} |-> 55
-      {sig: "sigB1", op: Call, nonce: 1, gas: 5, val: 1, dst: 101, data: "data1"} |-> 56
-      {sig: "sigB2", op: DelegateCall, nonce: 2, gas: 5, val: 1, dst: 102, data: "data2"} |-> 56
+      {sig:"sigA1", src:Any, dst: 101, op:Call, nonce:1, gas:5, val:1, data:"data1"} |-> 55
+      {sig:"sigA2", src:Any, dst:102, op:DelegateCall, nonce:2, gas:5, val:1, data:"data2"} |-> 55
+      {sig:"sigB1", src:Any, dst:101, op:Call, nonce:1, gas:5, val:1, data:"data1"} |-> 56
+      {sig:"sigB2", src:Any, dst:102, op:DelegateCall, nonce:2, gas:5, val:1, data:"data2"} |->  56
     </ecrecover>
     <call-success>
       .List
     </call-success>
-    <codesize>
-      102 |-> 100
-    </codesize>
     <gas-used-pre-call>
       10
     </gas-used-pre-call>
