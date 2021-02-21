@@ -174,7 +174,7 @@ module MINISIG
       => #checkPrestate SRC OP VAL SMSGS
       ~> #mkCall DST OP GAS VAL DATA
       ~> #checkPoststate OP ( NONCE +Int 1 )
-      ~> #return true
+      ~> #return .RetVal
       ~> #finalize
     ...
     </k>
