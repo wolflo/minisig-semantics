@@ -36,12 +36,12 @@ module MINISIG-TYPES
 
   rule nonce()            => #log fn_nonce()
                           ~> View ( Nonce )             [simplification]
-  rule threshold()        => #log fn_threshold()
-                          ~> View ( Thresh )            [simplification]
-  rule allSigners()       => #log fn_allSigners()
-                          ~> View ( Signers )           [simplification]
-  rule DOMAIN_SEPARATOR() => #log fn_DOMAIN_SEPARATOR()
-                          ~> View ( DomSep)             [simplification]
+  /* rule threshold()        => #log fn_threshold() */
+  /*                         ~> View ( Thresh )            [simplification] */
+  /* rule allSigners()       => #log fn_allSigners() */
+  /*                         ~> View ( Signers )           [simplification] */
+  /* rule DOMAIN_SEPARATOR() => #log fn_DOMAIN_SEPARATOR() */
+  /*                         ~> View ( DomSep)             [simplification] */
 
   rule execute ( SRC, DST, OP, GAS, VAL, DATA, [ SIGS ] )
     => #log fn_execute ( SRC , DST , OP , GAS , VAL , DATA , [ SIGS ] )

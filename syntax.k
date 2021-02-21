@@ -16,9 +16,9 @@ module MINISIG-SYNTAX
   syntax LstOpt ::= List{Opt, ","}
 
   syntax FnView     ::= "nonce"
-                      | "threshold"
-                      | "DOMAIN_SEPARATOR"
-                      | "allSigners"
+                      /* | "threshold" */
+                      /* | "DOMAIN_SEPARATOR" */
+                      /* | "allSigners" */
   syntax ViewParams ::= "(" ")"
 
   syntax FnExec     ::= "execute"
