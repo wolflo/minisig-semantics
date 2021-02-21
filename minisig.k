@@ -206,15 +206,13 @@ module MINISIG
   // -- balance must be sufficient for call
   syntax OpRequire ::= "#checkVal" CallType Int
 
-  rule
-    <k> #checkVal _ VAL => #revert INVALID_VAL ...</k>
-    <balance> BAL </balance>
-  requires VAL >Int BAL
+  // value is ignored for delegatecall
+  rule #checkVal DelegateCall _ => .K
 
   rule
-    <k> #checkVal DelegateCall VAL => #revert DELEGATECALL_INVALID_CALLVAL ...</k>
-    <callvalue> CALLVAL </callvalue>
-  requires notBool VAL ==Int CALLVAL
+    <k> #checkVal Call VAL => #revert INVALID_VAL ...</k>
+    <balance> BAL </balance>
+  requires VAL >Int BAL
 
   rule
     <k> #checkVal Call VAL => . ...</k>
