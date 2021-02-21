@@ -15,7 +15,6 @@ module TEST-HARNESS-SYNTAX
                     | StateExp StateExp [left]
 
   syntax WorldExp ::= "gas-used-pre-call"           ":=" Int
-                    | "codesize" "[" Address "]"    ":=" Int
                     | "ecrecover" "[" SignedMsg "]" ":=" Address
                     | "call-success"                ":=" "[" LstBool "]"
                     | WorldExp WorldExp [left]

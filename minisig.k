@@ -36,7 +36,6 @@ module MINISIG
       <world>
         <ecrecover> .Map </ecrecover> // signature => signer
         <call-success> .List </call-success>
-        <codesize> .Map </codesize>  // address => codesize
         <gas-used-pre-call> 0:Int </gas-used-pre-call>
       </world>
 
@@ -186,7 +185,6 @@ module MINISIG
   rule
     <k> #checkPrestate OP VAL DST SMSGS
       => #checkVal OP VAL
-      ~> #checkDst OP DST
       ~> #checkSigs ( #take THRESH SMSGS )
     ...
     </k>
@@ -215,24 +213,6 @@ module MINISIG
     <balance> BAL </balance>
   requires VAL <=Int BAL
 
-  rule
-    <k> #checkVal DelegateCall VAL => . ...</k>
-    <callvalue> CALLVAL </callvalue>
-    <balance> BAL </balance>
-  requires
-    VAL <=Int BAL
-    andBool VAL ==Int CALLVAL
-
-  // -- delegatecall requires that codesize(dstAddress) > 0
-  syntax OpRequire ::= "#checkDst" CallType Address
-
-  // dst for call op can be any -- incl. 0x0, msg.sender, address(this)
-  rule #checkDst Call _ => .K
-
-  rule
-    <k> #checkDst DelegateCall DST => . ...</k>
-    <codesize>... DST |-> CSIZE ...</codesize>
-  requires CSIZE >Int 0
 
   rule
     <k> #checkDst DelegateCall DST => #revert DELEGATECALL_DST_EMPTY_CODE ...</k>
