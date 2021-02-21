@@ -1,16 +1,17 @@
 module MINISIG-SYNTAX
   imports DOMAINS-SYNTAX
 
-  syntax Sig      ::= String
-  syntax Data     ::= String
-  syntax Address  ::= Int
-  syntax CallType ::= "Call"
-                    | "DelegateCall"
+  syntax Sig          ::= String
+  syntax Data         ::= String
+  syntax Address      ::= Int
+  syntax AddressOrAny ::= Address | "Any"
+  syntax CallType     ::= "Call" | "DelegateCall"
 
   syntax LstSig     ::= List{Sig, ":"}
   syntax LstAddress ::= List{Address, ":"}
 
-  syntax Opt    ::= "gas:"   Int
+  syntax Opt    ::= "from:"  Address
+                  | "gas:"   Int
                   | "value:" Int
   syntax LstOpt ::= List{Opt, ","}
 
@@ -21,12 +22,13 @@ module MINISIG-SYNTAX
   syntax ViewParams ::= "(" ")"
 
   syntax FnExec     ::= "execute"
-  syntax ExecParams ::= "(" CallType                // call or delegatecall
-                        "," Int                     // gas to send with call
-                        "," Int                     // value to send with call
-                        "," Address                 // destination of call
-                        "," Data                    // data to send with call
-                        "," "[" LstSig "]" ")"      // list of signatures
+  syntax ExecParams ::= "(" AddressOrAny        // accepted msg.sender
+                        "," Address             // destination of call
+                        "," CallType            // call or delegatecall
+                        "," Int                 // gas to send with call
+                        "," Int                 // value to send with call
+                        "," Data                // data to send with call
+                        "," "[" LstSig "]" ")"  // list of signatures
 
   syntax FnCstr     ::= "constructor"
   syntax CstrParams ::= "(" Int                     // threshold

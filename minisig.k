@@ -20,9 +20,10 @@ module MINISIG
       </msig-state>
 
       <call>
+        <caller> 0:Address </caller>
         <callvalue> 0:Int </callvalue>
-        <returndata> .RetVal </returndata>
         <callgas> 0:Int </callgas>
+        <returndata> .RetVal </returndata>
       </call>
 
       <log>
@@ -50,10 +51,11 @@ module MINISIG
   // --- log function calls ---
   rule
     <k> #log FN => . ...</k>
+    <caller> CALLER </caller>
     <callgas> CALLGAS </callgas>
     <callvalue> CALLVAL </callvalue>
     <fn-log>
-      (.List => ListItem( { fn: FN , callvalue: CALLVAL , callgas: CALLGAS } ))
+      (.List => ListItem( { fn: FN , caller: CALLER, callvalue: CALLVAL , callgas: CALLGAS } ))
     ...
     </fn-log>
 
@@ -71,6 +73,11 @@ module MINISIG
     <k> #set1 ( gas: GAS ) => .K ...</k>
     <callgas> _ => GAS </callgas>
   requires GAS >=Int 0 andBool GAS <Int pow256
+
+  rule
+    <k> #set1 ( from: CALLER ) ...</k>
+    <caller> _ => CALLER </caller>
+  requires CALLER >Int 0 andBool CALLER <Int pow160
 
   // --- function resolution ---
 
@@ -153,19 +160,19 @@ module MINISIG
   // --- Execute ---
   // ---------------
 
-  syntax OpInternal ::= "#exec" CallType Int Int Address Data LstSignedMsg
+  syntax OpInternal ::= "#exec" AddressOrAny Address CallType Int Int Data LstSignedMsg
 
   rule
-    <k> Exec ( OP , GAS , VAL , DST , DATA , SIGS )
-      => #exec OP GAS VAL DST DATA ( #toLstSignedMsg OP GAS VAL DST DATA NONCE SIGS )
+    <k> Exec ( SRC , DST , OP , GAS , VAL , DATA , SIGS )
+      => #exec SRC DST OP GAS VAL DATA ( #toLstSignedMsg SRC DST OP GAS VAL DATA NONCE SIGS )
     ...
     </k>
     <nonce> NONCE </nonce>
 
   rule
-    <k> #exec OP GAS VAL DST DATA SMSGS
-      => #checkPrestate OP VAL DST SMSGS
-      ~> #mkCall OP GAS VAL DST DATA
+    <k> #exec SRC DST OP GAS VAL DATA SMSGS
+      => #checkPrestate SRC OP VAL SMSGS
+      ~> #mkCall DST OP GAS VAL DATA
       ~> #checkPoststate OP ( NONCE +Int 1 )
       ~> #return true
       ~> #finalize
@@ -180,11 +187,12 @@ module MINISIG
 
   // --- validate initial state ---
   syntax OpInternal ::= OpRequire
-  syntax OpRequire ::= "#checkPrestate" CallType Int Address LstSignedMsg
+  syntax OpRequire ::= "#checkPrestate" AddressOrAny CallType Int LstSignedMsg
 
   rule
-    <k> #checkPrestate OP VAL DST SMSGS
+    <k> #checkPrestate SRC OP VAL SMSGS
       => #checkVal OP VAL
+      ~> #checkSrc SRC
       ~> #checkSigs ( #take THRESH SMSGS )
     ...
     </k>
@@ -213,17 +221,18 @@ module MINISIG
     <balance> BAL </balance>
   requires VAL <=Int BAL
 
+  // -- caller must be approved to submit transaction --
+  syntax OpRequire ::= "#checkSrc" AddressOrAny
 
   rule
-    <k> #checkDst DelegateCall DST => #revert DELEGATECALL_DST_EMPTY_CODE ...</k>
-    <codesize>... DST |-> CSIZE ...</codesize>
-  requires CSIZE ==Int 0
+    <k> #checkSrc SRC => . ...</k>
+    <caller> CALLER </caller>
+  requires SRC ==K CALLER orBool SRC ==K Any
 
-  // dst address is not in codesize mapping, defaults to 0
   rule
-    <k> #checkDst DelegateCall DST => #revert DELEGATECALL_DST_EMPTY_CODE ...</k>
-    <codesize> CSIZES </codesize>
-  requires notBool (DST in_keys(CSIZES))
+    <k> #checkSrc SRC => #revert INVALID_CALLER ...</k>
+    <caller> CALLER </caller>
+  requires notBool (SRC ==K CALLER orBool SRC ==K Any)
 
   // --- validate signatures ---
   syntax OpRequire ::= "#checkSigs" LstSignedMsg
@@ -279,14 +288,14 @@ module MINISIG
     requires size ( intersectSet ( #toSet Lst1 , #toSet Lst2 ) ) <Int N
 
   // --- make external call ---
-  syntax OpInternal ::= "#mkCall" CallType Int Int Address Data
+  syntax OpInternal ::= "#mkCall" Address CallType Int Int Data
   rule
-    <k> #mkCall OP TXGAS VAL DST DATA => . ...</k>
+    <k> #mkCall DST OP TXGAS VAL DATA => . ...</k>
     <call-log>
-      .List => ListItem( { op: OP
+      .List => ListItem( { dst: DST
+                         , op: OP
                          , gas: TXGAS
                          , val: VAL
-                         , dst: DST
                          , data: DATA } )
     ...
     </call-log>
@@ -298,7 +307,7 @@ module MINISIG
     andBool BAL >=Int VAL // this should always hold at this point
 
   rule
-    <k> #mkCall _ TXGAS _ _ _ => #revert INSUFFICIENT_CALLGAS ...</k>
+    <k> #mkCall _ _ TXGAS _ _ => #revert INSUFFICIENT_CALLGAS ...</k>
     <callgas> CALLGAS </callgas>
     <gas-used-pre-call> GASUSED </gas-used-pre-call>
   requires CALLGAS -Int GASUSED <Int ( TXGAS +Int gasCheckOverhead )
