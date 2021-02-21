@@ -173,7 +173,7 @@ module MINISIG
     <k> #exec SRC DST OP GAS VAL DATA SMSGS
       => #checkPrestate SRC OP VAL SMSGS
       ~> #mkCall DST OP GAS VAL DATA
-      ~> #checkPoststate OP ( NONCE +Int 1 )
+      ~> #checkPoststate
       ~> #return .RetVal
       ~> #finalize
     ...
@@ -312,38 +312,21 @@ module MINISIG
     <gas-used-pre-call> GASUSED </gas-used-pre-call>
   requires CALLGAS -Int GASUSED <Int ( TXGAS +Int gasCheckOverhead )
 
-  // --- check result of call and nonce (if delegatecall) ---
-  syntax OpRequire ::= "#checkPoststate" CallType Int
-  // - assert call succeeded
-  // - if delegatecall, assert that nonce is unchanged from before call
-
-  // call_success /\ ( op == delegate_call => nonce_unchanged )
-  // call_success /\ ( not(op == delegate_call) \/ nonce_unchanged )
+  // --- check result of call ---
+  syntax OpRequire ::= "#checkPoststate"
   rule
-    <k> #checkPoststate OP NONCE_PRECALL => . ...</k>
-    <call-success> ( ListItem ( CALLRET ) => .List ) ...</call-success>
-    <nonce> NONCE_POSTCALL </nonce>
-  requires
-    CALLRET ==Bool true
-    andBool ( notBool OP ==K DelegateCall
-              orBool NONCE_POSTCALL ==Int NONCE_PRECALL )
-
-  // TODO: this rule isnt covered by any test currently
-  rule
-    <k> #checkPoststate OP NONCE_PRECALL => #revert INVALID_POSTSTATE ...</k>
-    <nonce> NONCE_POSTCALL </nonce>
-  requires
-    OP ==K DelegateCall
-    andBool notBool NONCE_POSTCALL ==Int NONCE_PRECALL
+    <k> #checkPoststate => . ...</k>
+    <call-success> ( ListItem( CALLRET ) => .List ) ...</call-success>
+  requires CALLRET ==Bool true
 
   rule
-    <k> #checkPoststate _ _ => #revert CALL_FAILED ...</k>
+    <k> #checkPoststate => #revert CALL_FAILED ...</k>
     <call-success> ListItem(CALLRET) ...</call-success>
   requires CALLRET ==Bool false
 
   // an empty call-success list is assumed to be false
   rule
-    <k> #checkPoststate _ _ => #revert CALL_FAILED ...</k>
+    <k> #checkPoststate => #revert CALL_FAILED ...</k>
     <call-success> .List </call-success>
 
 
